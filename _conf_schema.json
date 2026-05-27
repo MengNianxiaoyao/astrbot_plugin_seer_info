@@ -1,0 +1,36 @@
+{
+  "seerapi_sync_url": {
+    "description": "SeerAPI 数据远程同步链接",
+    "type": "string",
+    "default": "https://github.com/SeerAPI/api-data/releases/download/latest/seerapi-data.sqlite",
+    "hint": "从远程 URL 同步赛尔号数据，为空则使用本地模式"
+  },
+  "seerapi_fingerprint_url": {
+    "description": "SeerAPI 数据指纹验证链接",
+    "type": "string",
+    "default": "https://github.com/SeerAPI/api-data/releases/download/latest/seerapi-data.sqlite.sha256",
+    "hint": "用于检测数据是否更新"
+  },
+  "seerapi_sync_interval_minutes": {
+    "description": "SeerAPI 数据同步间隔（分钟）",
+    "type": "int",
+    "default": 60
+  },
+  "alias_sync_url": {
+    "description": "别名数据远程同步链接",
+    "type": "string",
+    "default": "https://github.com/Nattsu39/ironsbot/releases/download/alias-db-latest/aliases-data.sqlite",
+    "hint": "精灵别名数据同步地址，为空则使用本地模式"
+  },
+  "alias_fingerprint_url": {
+    "description": "别名数据指纹验证链接",
+    "type": "string",
+    "default": "https://github.com/Nattsu39/ironsbot/releases/download/alias-db-latest/aliases-data.sqlite.sha256",
+    "hint": "用于检测别名数据是否更新"
+  },
+  "alias_sync_interval_minutes": {
+    "description": "别名数据同步间隔（分钟）",
+    "type": "int",
+    "default": 60
+  }
+}
