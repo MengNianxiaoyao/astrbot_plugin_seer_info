@@ -20,14 +20,26 @@ from ..depends.render import render_html_to_bytes
 class PetCommands:
     """Handler for pet-related commands."""
 
+    def __init__(self, is_local: bool = True, html_render=None):
+        self._is_local = is_local
+        self._html_render = html_render
+
     async def _render_pet_info_html(self, pet, sessions: dict) -> str:
         render_data = await render_pet_info_data(pet)
-        image_bytes = await render_html_to_bytes(
-            PET_TEMPLATE,
-            render_data,
-            viewport_width=1200,
-        )
-        return await self._save_bytes_to_temp_file(image_bytes)
+
+        if self._is_local:
+            image_bytes = await render_html_to_bytes(
+                PET_TEMPLATE,
+                render_data,
+                viewport_width=1200,
+            )
+            return await self._save_bytes_to_temp_file(image_bytes)
+        else:
+            return await self._html_render(
+                PET_TEMPLATE,
+                render_data,
+                options={"scale": "device", "type": "png"},
+            )
 
     async def _save_bytes_to_temp_file(self, image_bytes: bytes) -> str:
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
@@ -56,15 +68,14 @@ class PetCommands:
             return
 
         async def prepare_result(pet_obj):
-            image_url = await self._render_pet_info_html(pet_obj, sessions)
-            return [Comp.Image.fromFileSystem(image_url)]
+            return await self._render_pet_info_html(pet_obj, sessions)
 
         if len(pets) == 1:
-            yield event.chain_result(await prepare_result(pets[0]))
+            yield event.image_result(await prepare_result(pets[0]))
             return
 
         async def send_result(pet_obj, evt):
-            await evt.send(evt.chain_result(await prepare_result(pet_obj)))
+            await evt.send(evt.image_result(await prepare_result(pet_obj)))
 
         prompt_items = [
             {"name": pet.name, "desc": str(pet.id), "value": pet.id}

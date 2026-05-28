@@ -11,6 +11,10 @@ from ..render.type_matchup import render_type_matchup
 class AttributeCommands:
     """Handler for attribute type matchup commands."""
 
+    def __init__(self, is_local: bool = True, html_render=None):
+        self._is_local = is_local
+        self._html_render = html_render
+
     async def type_matchup(self, event: AstrMessageEvent, arg: str = ""):
         """查询属性克制表"""
         if not arg.strip():
@@ -33,15 +37,18 @@ class AttributeCommands:
             return
 
         async def prepare_result(type_combo):
-            temp_path = await render_type_matchup(type_combo)
-            return [event.image_result(temp_path)]
+            return await render_type_matchup(
+                type_combo,
+                is_local=self._is_local,
+                html_render=self._html_render,
+            )
 
         if len(types) == 1:
-            yield event.chain_result(await prepare_result(types[0]))
+            yield event.image_result(await prepare_result(types[0]))
             return
 
         async def send_result(type_combo, evt):
-            await evt.send(evt.chain_result(await prepare_result(type_combo)))
+            await evt.send(evt.image_result(await prepare_result(type_combo)))
 
         prompt_items = [
             {"name": f"{t.primary.name if t.primary else ''}{t.secondary.name if t.secondary else '（单属性）'}",

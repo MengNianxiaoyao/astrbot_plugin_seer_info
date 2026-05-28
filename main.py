@@ -37,8 +37,10 @@ class SeerInfoPlugin(Star):
         self._init_commands()
 
     def _init_commands(self):
-        self._pet_cmds = PetCommands()
-        self._attr_cmds = AttributeCommands()
+        render_mode = self.config.get("render_mode", "local")
+        is_local = render_mode == "local"
+        self._pet_cmds = PetCommands(is_local=is_local, html_render=self.html_render)
+        self._attr_cmds = AttributeCommands(is_local=is_local, html_render=self.html_render)
         self._effect_cmds = EffectCommands()
         self._mintmark_cmds = MintmarkCommands()
         self._equip_cmds = EquipCommands()
@@ -88,7 +90,8 @@ class SeerInfoPlugin(Star):
 
     async def terminate(self):
         logger.info("SeerInfo 插件已卸载")
-        await close_renderer()
+        if self.config.get("render_mode", "local") == "local":
+            await close_renderer()
 
     @filter.command("精灵", alias={"查询精灵信息", "魂印", "技能"})
     async def pet_info(self, event: AstrMessageEvent, arg: str = ""):

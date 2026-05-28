@@ -32,5 +32,12 @@
     "description": "别名数据同步间隔（分钟）",
     "type": "int",
     "default": 60
+  },
+  "render_mode": {
+    "description": "图片渲染模式",
+    "type": "string",
+    "options": ["local", "remote"],
+    "default": "local",
+    "hint": "默认本地渲染。local: 本地渲染  remote: AstrBot渲染服务"
   }
 }

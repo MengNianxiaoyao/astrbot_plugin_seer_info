@@ -100,22 +100,35 @@ async def build_type_matchup_render_data(type_combo: TypeCombinationORM) -> dict
         }
 
 
-async def render_type_matchup(type_combo: TypeCombinationORM) -> str:
+async def render_type_matchup(
+    type_combo: TypeCombinationORM,
+    is_local: bool = True,
+    html_render=None,
+) -> str:
     """Render type matchup chart to PNG image.
 
     Args:
         type_combo: The TypeCombinationORM object
+        is_local: Whether to use local Playwright rendering
+        html_render: AstrBot's html_render function (required for remote mode)
 
     Returns:
         Path to the rendered image file
     """
     render_data = await build_type_matchup_render_data(type_combo)
-    image_bytes = await render_html_to_bytes(
-        TYPE_MATCHUP_TEMPLATE,
-        render_data,
-        viewport_width=1200,
-    )
 
-    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
-        f.write(image_bytes)
-        return f.name
+    if is_local:
+        image_bytes = await render_html_to_bytes(
+            TYPE_MATCHUP_TEMPLATE,
+            render_data,
+            viewport_width=1200,
+        )
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+            f.write(image_bytes)
+            return f.name
+    else:
+        return await html_render(
+            TYPE_MATCHUP_TEMPLATE,
+            render_data,
+            options={"scale": "device", "type": "png"},
+        )
