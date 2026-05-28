@@ -49,20 +49,23 @@ class EffectCommands:
             yield event.plain_result(f"❌重名超过20个，请重新检索关键词！")
             return
 
-        async def send_result(effect_obj, evt):
+        async def prepare_result(effect_obj):
             image_bytes = await BattleEffectImageGetter.get_bytes(str(effect_obj.id))
             with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
                 f.write(image_bytes)
                 temp_path = f.name
             info = self._build_effect_info(effect_obj)
-            await evt.send(evt.chain_result([
+            return [
                 Comp.Image.fromFileSystem(temp_path),
                 Comp.Plain(info),
-            ]))
+            ]
 
         if len(effects) == 1:
-            await send_result(effects[0], event)
+            yield event.chain_result(await prepare_result(effects[0]))
             return
+
+        async def send_result(effect_obj, evt):
+            await evt.send(evt.chain_result(await prepare_result(effect_obj)))
 
         prompt_items = [
             {"name": effect.name, "desc": str(effect.id), "value": effect.id}

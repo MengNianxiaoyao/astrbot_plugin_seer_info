@@ -3,6 +3,8 @@ Local HTML rendering for SeerInfo plugin.
 
 Uses Jinja2 for template rendering and Playwright for HTML to image conversion.
 This avoids relying on AstrBot's remote html_render API.
+
+Reference: https://github.com/AstrBotDevs/astrbot-t2i-service
 """
 
 import asyncio
@@ -10,14 +12,15 @@ from pathlib import Path
 from typing import Any
 
 import jinja2
-from playwright.async_api import async_playwright
+from jinja2.sandbox import SandboxedEnvironment
+from playwright.async_api import async_playwright, Browser, BrowserContext, Page
+from playwright._impl._errors import TargetClosedError
 
 from astrbot.api import logger
 
 
 DEFAULT_TIMEOUT = 30000
 DEFAULT_VIEWPORT_WIDTH = 1200
-INITIAL_VIEWPORT_HEIGHT = 600
 
 
 class LocalRenderer:
@@ -25,8 +28,10 @@ class LocalRenderer:
 
     def __init__(self):
         self._playwright = None
-        self._browser = None
-        self._env = jinja2.Environment(
+        self._browser: Browser | None = None
+        self._context: BrowserContext | None = None
+        self._lock = asyncio.Lock()
+        self._env = SandboxedEnvironment(
             loader=jinja2.FileSystemLoader(str(self._get_templates_dir())),
             autoescape=jinja2.select_autoescape(["html", "xml"]),
             keep_trailing_newline=True,
@@ -37,18 +42,35 @@ class LocalRenderer:
         plugin_dir = Path(__file__).parent.parent
         return plugin_dir / "templates"
 
-    async def _get_browser(self):
-        if self._browser is None:
-            self._playwright = await async_playwright().start()
-            self._browser = await self._playwright.chromium.launch(
-                headless=True,
-                args=[
-                    "--disable-dev-shm-usage",
-                    "--no-sandbox",
-                    "--disable-gpu",
-                ],
+    async def _get_browser(self) -> Browser:
+        """获取共享的浏览器实例（延迟初始化，线程安全）"""
+        async with self._lock:
+            if self._browser is None or not self._browser.is_connected():
+                self._playwright = await async_playwright().start()
+                self._browser = await self._playwright.chromium.launch(
+                    headless=True,
+                    args=[
+                        "--disable-dev-shm-usage",
+                        "--no-sandbox",
+                        "--disable-gpu",
+                    ],
+                )
+                logger.info("Playwright 浏览器已启动")
+            return self._browser
+
+    async def _get_context(self) -> BrowserContext:
+        """获取共享的浏览器上下文"""
+        browser = await self._get_browser()
+        if self._context is None or not self._context.browser:
+            self._context = await browser.new_context(
+                viewport={
+                    "width": DEFAULT_VIEWPORT_WIDTH,
+                    "height": 600,
+                },
+                device_scale_factor=2,
+                ignore_https_errors=True,
             )
-        return self._browser
+        return self._context
 
     async def render_template(
         self,
@@ -77,21 +99,21 @@ class LocalRenderer:
         viewport_width: int,
         timeout: float,
     ) -> bytes:
-        browser = await self._get_browser()
-
-        context = await browser.new_context(
-            viewport={
-                "width": viewport_width,
-                "height": INITIAL_VIEWPORT_HEIGHT,
-            },
-            device_scale_factor=2,
-            ignore_https_errors=True,
-        )
-        page = await context.new_page()
+        context = await self._get_context()
+        page: Page | None = None
+        try:
+            page = await context.new_page()
+        except TargetClosedError:
+            logger.warning("Context closed, recreating...")
+            if self._context:
+                await self._context.close()
+            self._context = None
+            context = await self._get_context()
+            page = await context.new_page()
 
         try:
+            await page.set_viewport_size({"width": viewport_width, "height": 600})
             await page.set_content(html_content, wait_until="networkidle", timeout=timeout)
-            await asyncio.sleep(0.2)
 
             screenshot = await page.screenshot(
                 type="png",
@@ -105,25 +127,32 @@ class LocalRenderer:
             logger.error(f"Failed to render HTML to image: {e}")
             raise
         finally:
-            await page.close()
-            await context.close()
+            if page:
+                await page.close()
 
     async def close(self):
-        if self._browser:
-            await self._browser.close()
-            self._browser = None
-        if self._playwright:
-            await self._playwright.stop()
-            self._playwright = None
+        """关闭浏览器实例"""
+        async with self._lock:
+            if self._context:
+                try:
+                    await self._context.close()
+                except Exception:
+                    pass
+                self._context = None
 
-    async def __aenter__(self):
-        return self
+            if self._browser:
+                if self._browser.is_connected():
+                    await self._browser.close()
+                self._browser = None
+                logger.info("Playwright 浏览器已关闭")
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.close()
+            if self._playwright:
+                await self._playwright.stop()
+                self._playwright = None
 
 
 _renderer: LocalRenderer | None = None
+_lock = asyncio.Lock()
 
 
 def get_renderer() -> LocalRenderer:
@@ -134,6 +163,7 @@ def get_renderer() -> LocalRenderer:
 
 
 async def close_renderer():
+    """关闭渲染器（插件卸载时调用）"""
     global _renderer
     if _renderer:
         await _renderer.close()

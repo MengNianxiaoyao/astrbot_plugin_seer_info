@@ -47,18 +47,21 @@ class TitleCommands:
             yield event.plain_result(f"❌重名超过20个，请重新检索关键词！")
             return
 
-        async def send_result(title_obj, evt):
+        async def prepare_result(title_obj):
             image_bytes = await TitleImageGetter.get_bytes(str(title_obj.id))
             temp_path = await self._save_bytes_to_temp_file(image_bytes)
             info = self._build_title_info(title_obj)
-            await evt.send(evt.chain_result([
+            return [
                 Comp.Image.fromFileSystem(temp_path),
                 Comp.Plain(info)
-            ]))
+            ]
 
         if len(titles) == 1:
-            await send_result(titles[0], event)
+            yield event.chain_result(await prepare_result(titles[0]))
             return
+
+        async def send_result(title_obj, evt):
+            await evt.send(evt.chain_result(await prepare_result(title_obj)))
 
         prompt_items = [
             {"name": title.name, "desc": str(title.id), "value": title.id}

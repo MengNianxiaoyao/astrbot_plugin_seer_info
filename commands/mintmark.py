@@ -62,18 +62,21 @@ class MintmarkCommands:
             yield event.plain_result(f"❌重名超过20个，请重新检索关键词！")
             return
 
-        async def send_result(mm, evt):
+        async def prepare_result(mm):
             image_bytes = await MintmarkBodyImageGetter.get_bytes(str(mm.id))
             temp_path = await self._save_bytes_to_temp_file(image_bytes)
             info = self._build_mintmark_info(mm)
-            await evt.send(evt.chain_result([
+            return [
                 Comp.Image.fromFileSystem(temp_path),
                 Comp.Plain(info)
-            ]))
+            ]
 
         if len(mintmarks) == 1:
-            await send_result(mintmarks[0], event)
+            yield event.chain_result(await prepare_result(mintmarks[0]))
             return
+
+        async def send_result(mm, evt):
+            await evt.send(evt.chain_result(await prepare_result(mm)))
 
         prompt_items = [
             {"name": mm.name, "desc": _item_desc_fmt(mm), "value": mm.id}
@@ -135,13 +138,16 @@ class MintmarkCommands:
             yield event.plain_result(f"❌重名超过20个，请重新检索关键词！")
             return
 
-        async def send_result(gem_obj, evt):
+        async def prepare_result(gem_obj):
             info = self._build_gem_info(gem_obj)
-            await evt.send(evt.plain_result(info))
+            return [Comp.Plain(info)]
 
         if len(gems) == 1:
-            await send_result(gems[0], event)
+            yield event.chain_result(await prepare_result(gems[0]))
             return
+
+        async def send_result(gem_obj, evt):
+            await evt.send(evt.chain_result(await prepare_result(gem_obj)))
 
         prompt_items = [
             {"name": g.name, "desc": str(g.id), "value": g.id}

@@ -55,13 +55,16 @@ class PetCommands:
             yield event.plain_result(f"❌重名超过20个，请重新检索关键词！")
             return
 
-        async def send_result(pet_obj, evt):
+        async def prepare_result(pet_obj):
             image_url = await self._render_pet_info_html(pet_obj, sessions)
-            await evt.send(evt.image_result(image_url))
+            return [Comp.Image.fromFileSystem(image_url)]
 
         if len(pets) == 1:
-            await send_result(pets[0], event)
+            yield event.chain_result(await prepare_result(pets[0]))
             return
+
+        async def send_result(pet_obj, evt):
+            await evt.send(evt.chain_result(await prepare_result(pet_obj)))
 
         prompt_items = [
             {"name": pet.name, "desc": str(pet.id), "value": pet.id}
@@ -124,19 +127,22 @@ class PetCommands:
             yield event.plain_result(f"❌重名超过20个，请重新检索关键词！")
             return
 
-        async def send_result(skin, evt):
+        async def prepare_result(skin):
             image_bytes = await PetBodyImageGetter.get_bytes(str(skin.resource_id))
             with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
                 f.write(image_bytes)
                 temp_path = f.name
-            await evt.send(evt.chain_result([
+            return [
                 Comp.Image.fromFileSystem(temp_path),
                 Comp.Plain(f"💎【{skin.name}】")
-            ]))
+            ]
 
         if len(skins) == 1:
-            await send_result(skins[0], event)
+            yield event.chain_result(await prepare_result(skins[0]))
             return
+
+        async def send_result(skin, evt):
+            await evt.send(evt.chain_result(await prepare_result(skin)))
 
         prompt_items = [
             {"name": skin.name, "desc": str(skin.resource_id), "value": skin.resource_id}

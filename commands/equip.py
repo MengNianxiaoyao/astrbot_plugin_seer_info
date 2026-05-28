@@ -78,18 +78,21 @@ class EquipCommands:
             yield event.plain_result(f"❌重名超过20个，请重新检索关键词！")
             return
 
-        async def send_result(suit_obj, evt):
+        async def prepare_result(suit_obj):
             image_bytes = await SuitImageGetter.get_bytes(str(suit_obj.id))
             temp_path = await self._save_bytes_to_temp_file(image_bytes)
             info = self._build_suit_info(suit_obj)
-            await evt.send(evt.chain_result([
+            return [
                 Comp.Image.fromFileSystem(temp_path),
                 Comp.Plain(info)
-            ]))
+            ]
 
         if len(suits) == 1:
-            await send_result(suits[0], event)
+            yield event.chain_result(await prepare_result(suits[0]))
             return
+
+        async def send_result(suit_obj, evt):
+            await evt.send(evt.chain_result(await prepare_result(suit_obj)))
 
         prompt_items = [
             {"name": s.name, "desc": str(s.id), "value": s.id}
@@ -151,18 +154,21 @@ class EquipCommands:
             yield event.plain_result(f"❌重名超过20个，请重新检索关键词！")
             return
 
-        async def send_result(equip_obj, evt):
+        async def prepare_result(equip_obj):
             image_bytes = await EquipImageGetter.get_bytes(str(equip_obj.id))
             temp_path = await self._save_bytes_to_temp_file(image_bytes)
             info = self._build_equip_info(equip_obj)
-            await evt.send(evt.chain_result([
+            return [
                 Comp.Image.fromFileSystem(temp_path),
                 Comp.Plain(info)
-            ]))
+            ]
 
         if len(equips) == 1:
-            await send_result(equips[0], event)
+            yield event.chain_result(await prepare_result(equips[0]))
             return
+
+        async def send_result(equip_obj, evt):
+            await evt.send(evt.chain_result(await prepare_result(equip_obj)))
 
         prompt_items = [
             {"name": e.name, "desc": str(e.id), "value": e.id}
