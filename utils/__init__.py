@@ -1,3 +1,7 @@
+"""
+Utility functions for SeerInfo plugin.
+"""
+
 from collections.abc import Iterable
 
 

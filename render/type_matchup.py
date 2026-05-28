@@ -1,6 +1,7 @@
 """Render type matchup chart using HTML template."""
 
 import asyncio
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -99,19 +100,15 @@ async def build_type_matchup_render_data(type_combo: TypeCombinationORM) -> dict
         }
 
 
-async def render_type_matchup(type_combo: TypeCombinationORM, html_render_func=None, options=None) -> str:
-    """Render type matchup chart using HTML template.
+async def render_type_matchup(type_combo: TypeCombinationORM) -> str:
+    """Render type matchup chart to PNG image.
 
     Args:
         type_combo: The TypeCombinationORM object
-        html_render_func: Deprecated, ignored. Kept for compatibility.
-        options: Deprecated, ignored. Kept for compatibility.
 
     Returns:
         Path to the rendered image file
     """
-    import tempfile
-
     render_data = await build_type_matchup_render_data(type_combo)
     image_bytes = await render_html_to_bytes(
         TYPE_MATCHUP_TEMPLATE,

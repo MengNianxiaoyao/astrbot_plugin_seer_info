@@ -61,9 +61,6 @@ class AliasModelProtocol(Protocol):
     target_id: int
 
 
-db_manager: "DatabaseManager" = None
-
-
 def get_plugin_db_path(db_name: str) -> str:
     """获取插件数据库文件的默认路径。
     

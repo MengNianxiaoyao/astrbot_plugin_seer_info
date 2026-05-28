@@ -1,6 +1,6 @@
 """
 Pet info renderer for SeerInfo plugin.
-Uses Jinja2 templates with AstrBot's html_render().
+Uses Jinja2 templates with local Playwright rendering.
 """
 
 import asyncio

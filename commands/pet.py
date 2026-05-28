@@ -1,0 +1,181 @@
+"""Pet-related commands: 精灵, 立绘."""
+
+import tempfile
+from astrbot.api.event import AstrMessageEvent
+from astrbot.api import logger
+from astrbot.core.utils.session_waiter import session_waiter, SessionController
+import astrbot.api.message_components as Comp
+
+from ..depends.db import (
+    PetORM,
+    PetDataGetter,
+    PetSkinDataGetter,
+    db_manager,
+)
+from ..depends.image import PetBodyImageGetter, PetHeadImageGetter
+from ..render.pet_info import render_pet_info_data, PET_TEMPLATE
+from ..depends.render import render_html_to_bytes
+
+
+class PetCommands:
+    """Handler for pet-related commands."""
+
+    async def _render_pet_info_html(self, pet, sessions: dict) -> str:
+        render_data = await render_pet_info_data(pet)
+        image_bytes = await render_html_to_bytes(
+            PET_TEMPLATE,
+            render_data,
+            viewport_width=1200,
+        )
+        return await self._save_bytes_to_temp_file(image_bytes)
+
+    async def _save_bytes_to_temp_file(self, image_bytes: bytes) -> str:
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+            f.write(image_bytes)
+            return f.name
+
+    async def pet_info(self, event: AstrMessageEvent, arg: str = ""):
+        """查询精灵基础信息"""
+        if not arg.strip():
+            yield event.plain_result("❌请提供要查询的精灵名称或ID。\n用法：/精灵 <名称>")
+            return
+
+        if not db_manager.is_database_loaded("seerapi"):
+            yield event.plain_result("❌数据库未加载，请稍后再试")
+            return
+
+        sessions = db_manager.get_all_sessions()
+        pets = PetDataGetter(sessions, arg)
+
+        if not pets:
+            yield event.plain_result(f"❌未找到匹配的精灵: {arg}")
+            return
+
+        if len(pets) > 20:
+            yield event.plain_result(f"❌重名超过20个，请重新检索关键词！")
+            return
+
+        async def send_result(pet_obj, evt):
+            image_url = await self._render_pet_info_html(pet_obj, sessions)
+            await evt.send(evt.image_result(image_url))
+
+        if len(pets) == 1:
+            await send_result(pets[0], event)
+            return
+
+        prompt_items = [
+            {"name": pet.name, "desc": str(pet.id), "value": pet.id}
+            for pet in pets[:20]
+        ]
+
+        prompt_map = {str(i+1): p["value"] for i, p in enumerate(prompt_items)}
+
+        @session_waiter(timeout=60, record_history_chains=False)
+        async def handler(controller: SessionController, evt: AstrMessageEvent):
+            user_input = evt.message_str.strip()
+            if user_input == "0":
+                await evt.send(evt.plain_result("❌已退出查询"))
+                controller.stop()
+                return
+
+            if user_input not in prompt_map:
+                await evt.send(evt.plain_result("⚠️序号无效，请重新输入"))
+                controller.keep(timeout=60, reset_timeout=True)
+                return
+
+            index = int(user_input) - 1
+            pet_obj = db_manager.get_all_sessions().get("seerapi", {}).get(PetORM, prompt_map[user_input])
+            if not pet_obj:
+                await evt.send(evt.plain_result(f"❌未找到精灵 ID: {prompt_map[user_input]}"))
+                controller.stop()
+                return
+            await send_result(pet_obj, evt)
+            controller.stop()
+
+        msg = f"请问你想查询的精灵是……\n"
+        for i, item in enumerate(prompt_items, 1):
+            msg += f"{i}. {item['name']}（{item['desc']}）\n"
+        msg += "\n💬 输入序号选择 · 输入 0 退出"
+
+        yield event.plain_result(msg)
+
+        try:
+            await handler(event)
+        except TimeoutError:
+            yield event.plain_result("⏰选择超时，已退出")
+        except Exception as e:
+            logger.error(f"pet_info selection error: {e}")
+            yield event.plain_result(f"发生错误: {e}")
+
+    async def pet_image(self, event: AstrMessageEvent, arg: str = ""):
+        """查询精灵或皮肤立绘"""
+        if not arg.strip():
+            yield event.plain_result("❌请提供要查询的立绘名称或ID。\n用法：/立绘 <名称>")
+            return
+
+        sessions = db_manager.get_all_sessions()
+        skins = PetSkinDataGetter(sessions, arg)
+
+        if not skins:
+            yield event.plain_result(f"❌未找到匹配的立绘: {arg}")
+            return
+
+        if len(skins) > 20:
+            yield event.plain_result(f"❌重名超过20个，请重新检索关键词！")
+            return
+
+        async def send_result(skin, evt):
+            image_bytes = await PetBodyImageGetter.get_bytes(str(skin.resource_id))
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+                f.write(image_bytes)
+                temp_path = f.name
+            await evt.send(evt.chain_result([
+                Comp.Image.fromFileSystem(temp_path),
+                Comp.Plain(f"💎【{skin.name}】")
+            ]))
+
+        if len(skins) == 1:
+            await send_result(skins[0], event)
+            return
+
+        prompt_items = [
+            {"name": skin.name, "desc": str(skin.resource_id), "value": skin.resource_id}
+            for skin in skins[:20]
+        ]
+
+        prompt_map = {str(i+1): p["value"] for i, p in enumerate(prompt_items)}
+
+        @session_waiter(timeout=60, record_history_chains=False)
+        async def handler(controller: SessionController, evt: AstrMessageEvent):
+            user_input = evt.message_str.strip()
+            if user_input == "0":
+                await evt.send(evt.plain_result("❌已退出查询"))
+                controller.stop()
+                return
+
+            if user_input not in prompt_map:
+                await evt.send(evt.plain_result("⚠️序号无效，请重新输入"))
+                controller.keep(timeout=60, reset_timeout=True)
+                return
+
+            index = int(user_input) - 1
+            await send_result(skins[index], evt)
+            controller.stop()
+
+        msg = f"请问你想查询的立绘是……\n"
+        for i, item in enumerate(prompt_items, 1):
+            msg += f"{i}. {item['name']}（{item['desc']}）\n"
+        msg += "\n💬 输入序号选择 · 输入 0 退出"
+
+        yield event.plain_result(msg)
+
+        try:
+            await handler(event)
+        except TimeoutError:
+            yield event.plain_result("⏰选择超时，已退出")
+        except Exception as e:
+            logger.error(f"pet_image selection error: {e}")
+            yield event.plain_result(f"发生错误: {e}")
+
+
+__all__ = ["PetCommands"]
