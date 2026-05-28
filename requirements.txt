@@ -1,2 +1,4 @@
 seerapi_models
 pypinyin
+jinja2
+playwright

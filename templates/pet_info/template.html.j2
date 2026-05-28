@@ -522,7 +522,7 @@
         <div class="sk-efx">
             {% for ef in skill.effects %}
             <div class="sk-ef">
-                · {{ ef.info }} <span style="font-size: 15px; color: #a0c0e0; opacity: 0.8;">(ID: {{
+                · {{ ef.info|safe }} <span style="font-size: 15px; color: #a0c0e0; opacity: 0.8;">(ID: {{
                     ef.id }})</span>
             </div>
             {% endfor %}
@@ -530,11 +530,11 @@
         {% endif %}
         {% if skill.hide_effect_desc %}
         <div class="sk-hide-effect">
-            <span class="sk-hide-effect-label">隐藏效果:</span>{{ skill.hide_effect_desc }}
+            <span class="sk-hide-effect-label">隐藏效果:</span>{{ skill.hide_effect_desc|safe }}
         </div>
         {% endif %}
         {% if skill.info %}
-        <div class="sk-desc">{{ skill.info }}</div>
+        <div class="sk-desc">{{ skill.info|safe }}</div>
         {% endif %}
     </div>
     {% endmacro %}
@@ -645,13 +645,13 @@
                                 -->
                             </div>
                             {% endif %}
-                            <div class="sm-desc">{{ sm.desc }}</div>
+                            <div class="sm-desc">{{ sm.desc|safe }}</div>
                             {% if sm.glossaries %}
                             <div class="sm-glossaries">
                                 {% for g in sm.glossaries %}
                                 <div class="sm-glossary">
                                     <span class="sm-glossary-name">{{ g.name }}:</span>
-                                    <span class="sm-glossary-desc">{{ g.desc }}</span>
+                                    <span class="sm-glossary-desc">{{ g.desc|safe }}</span>
                                 </div>
                                 {% endfor %}
                             </div>
@@ -678,7 +678,7 @@
                                     </span>
                                     {% endif %}
                                 </div>
-                                <div class="mm-desc">{{ mm.desc }}</div>
+                                <div class="mm-desc">{{ mm.desc|safe }}</div>
                             </div>
                         </div>
                         {% endfor %}

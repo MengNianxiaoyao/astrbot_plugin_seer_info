@@ -11,6 +11,7 @@ from astrbot.api import logger
 from ..depends.image import ElementTypeImageGetter
 from ..depends.type_calc import calc_attack_table, calc_defense_table
 from ..depends.db import db_manager
+from ..depends.render import render_html_to_bytes
 from ._common import to_data_uri
 
 TEMPLATE_PATH = "templates/type_matchup"
@@ -98,18 +99,26 @@ async def build_type_matchup_render_data(type_combo: TypeCombinationORM) -> dict
         }
 
 
-async def render_type_matchup(type_combo: TypeCombinationORM, html_render_func, options=None) -> str:
+async def render_type_matchup(type_combo: TypeCombinationORM, html_render_func=None, options=None) -> str:
     """Render type matchup chart using HTML template.
 
     Args:
         type_combo: The TypeCombinationORM object
-        html_render_func: Function to render HTML template to image
-        options: Playwright screenshot options
+        html_render_func: Deprecated, ignored. Kept for compatibility.
+        options: Deprecated, ignored. Kept for compatibility.
 
     Returns:
         Path to the rendered image file
     """
+    import tempfile
+
     render_data = await build_type_matchup_render_data(type_combo)
-    if options is None:
-        options = {"scale": "device", "type": "png"}
-    return await html_render_func(TYPE_MATCHUP_TEMPLATE, render_data, options=options)
+    image_bytes = await render_html_to_bytes(
+        TYPE_MATCHUP_TEMPLATE,
+        render_data,
+        viewport_width=1200,
+    )
+
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+        f.write(image_bytes)
+        return f.name

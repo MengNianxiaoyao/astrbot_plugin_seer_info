@@ -120,7 +120,18 @@ class AnalyzeDescParser:
 
     @property
     def segments(self) -> list[TextSegment]:
+        """描述中出现的所有文本片段"""
         return [seg for line in self.lines for seg in line.segments]
+
+    @property
+    def segments_with_id(self) -> set[int]:
+        """描述中出现的所有词条 ID"""
+        return {seg.id for seg in self.segments if seg.id}
+
+    @property
+    def colors(self) -> set[str]:
+        """描述中出现的所有颜色值"""
+        return {c for line in self.lines for seg in line.segments for c in seg.colors}
 
     def to_plain_text(self, line_separator: str = "\n") -> str:
         return line_separator.join(line.plain_text for line in self.lines)

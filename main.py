@@ -4,22 +4,15 @@ AstrBot Plugin: Seer Info (赛尔号数据查询)
 Ported from IronsBot NoneBot2 plugin to AstrBot framework.
 """
 
-import asyncio
-import os
 import re
 import tempfile
-from io import BytesIO
-from pathlib import Path
 
 import aiohttp
-import jinja2
-from PIL import Image, ImageDraw, ImageFont
 
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star
 from astrbot.api import logger
 from astrbot.core.utils.session_waiter import session_waiter, SessionController
-from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 import astrbot.api.message_components as Comp
 from seerapi_models import MintmarkORM
 from seerapi_models.common import SixAttributes
@@ -55,6 +48,7 @@ from .depends.image import (
     BattleEffectImageGetter,
     PreviewImageGetter,
 )
+from .depends.render import render_html_to_bytes, close_renderer
 
 
 EQUIP_PART_TYPE_MAP = {
@@ -170,14 +164,16 @@ class SeerInfoPlugin(Star):
 
     async def terminate(self):
         logger.info("SeerInfo 插件已卸载")
+        await close_renderer()
 
     async def _render_pet_info_html(self, pet, sessions: dict) -> str:
         render_data = await render_pet_info_data(pet)
-        return await self.html_render(
+        image_bytes = await render_html_to_bytes(
             PET_TEMPLATE,
             render_data,
-            options={"scale": "device", "type": "png"},
+            viewport_width=1200,
         )
+        return await self._save_bytes_to_temp_file(image_bytes)
 
     async def _save_bytes_to_temp_file(self, image_bytes: bytes) -> str:
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:

@@ -7,12 +7,12 @@ Simplified from IronsBot's db_sync system for AstrBot.
 import asyncio
 import os
 import re
+import sqlite3
 from collections.abc import Callable, Generator, Iterable
 from pathlib import Path
 from typing import Any, Final, Generic, Protocol, TypeVar, Union
 
 import aiohttp
-import sqlite3
 from pypinyin import lazy_pinyin
 from seerapi_models import (
     PetORM,
@@ -137,12 +137,17 @@ class DatabaseManager:
         """获取指定名称的数据库引擎。"""
         return self._engines.get(name)
 
-    def get_session(self, name: str) -> SQLModelSession | None:
-        """获取指定数据库的会话。"""
+    def get_session(self, name: str) -> Generator[SQLModelSession, None, None] | None:
+        """获取指定数据库的会话生成器。"""
         engine = self.get_engine(name)
         if engine is None:
             return None
-        return SQLModelSession(engine)
+
+        def _gen() -> Generator[SQLModelSession, None, None]:
+            with SQLModelSession(engine) as session:
+                yield session
+
+        return _gen()
 
     def get_all_sessions(self) -> dict[str, SQLModelSession]:
         """创建所有已注册数据库的会话字典。"""
@@ -150,6 +155,11 @@ class DatabaseManager:
             name: SQLModelSession(engine)
             for name, engine in self._engines.items()
         }
+
+    @property
+    def registered_names(self) -> list[str]:
+        """获取所有已注册的数据库名称。"""
+        return list(self._engines.keys())
 
     def is_database_loaded(self, name: str) -> bool:
         """检查数据库是否已加载（有实际数据）。"""
