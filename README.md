@@ -4,6 +4,17 @@
 
 > 查询功能不包含需要登录无头客户端的功能。
 
+## 安装
+
+### 手动安装
+
+将本仓库克隆到 AstrBot 的插件目录下
+
+```bash
+cd <AstrBot目录>/data/plugins
+git clone https://github.com/MengNianxiaoyao/astrbot_plugin_seer_info.git
+```
+
 ## 命令表
 
 发送 **/帮助** 即可获取命令表
@@ -21,6 +32,14 @@
 | 称号相关 | 称号 <名称/id> |     查询称号信息     |
 | 其他功能 |    下周预告    |    获取下周预告图    |
 |          |    开服查询    | 查询服务器是否已开服 |
+
+## 说明
+
+本地渲染需要使用 [Playwright](https://playwright.dev/python/)。在 AstrBot 运行环境中执行以下命令安装浏览器：
+
+```bash
+playwright install chromium
+```
 
 ## 协议
 

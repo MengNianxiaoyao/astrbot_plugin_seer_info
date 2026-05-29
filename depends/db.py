@@ -196,14 +196,11 @@ def register_database(
     asyncio.create_task(sync_task())
 
 
-def register_local_database(name: str, file_path: str = None):
-    """注册本地数据库文件。
-    
-    若 file_path 为 None，则使用默认路径：
+def register_local_database(name: str):
+    """注册本地数据库文件，使用默认路径：
     data/plugin_data/{plugin_name}/{name}.sqlite
     """
-    if file_path is None:
-        file_path = get_plugin_db_path(name)
+    file_path = get_plugin_db_path(name)
     
     if not os.path.exists(file_path):
         logger.warning(f"本地文件 '{file_path}' 不存在，跳过注册 {name}")
@@ -257,12 +254,12 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
                     async with aiohttp.ClientSession() as session:
                         remote_fp = await get_fingerprint(session)
                         Path(sha256_path).write_text(remote_fp.strip())
-                        logger.debug(f"已保存指纹: {remote_fp.strip()}")
+                        logger.info(f"已保存指纹: {remote_fp.strip()}")
                 except Exception as e:
                     logger.warning(f"保存指纹失败: {e}")
 
             size_mb = len(data) / (1024 * 1024)
-            logger.info(f"数据库 '{name}' 已下载到 {plugin_db_path}，大小: {size_mb:.2f} MB")
+            logger.info(f"数据库 '{name}' 已下载，大小: {size_mb:.2f} MB")
 
             db_manager.register(name)
             db_manager.load_from_file(name, plugin_db_path)
