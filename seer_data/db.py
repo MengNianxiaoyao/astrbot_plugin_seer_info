@@ -46,12 +46,6 @@ class PetAliasORM(SQLModel, table=True):
     target_id: int = Field(primary_key=True)
 
 
-class GemAliasORM(SQLModel, table=True):
-    __tablename__ = "gem_aliases"
-    __table_args__ = {"extend_existing": True}
-    name: str = Field(primary_key=True)
-    target_id: int = Field(primary_key=True)
-
 
 class AliasModelProtocol(Protocol):
     name: str

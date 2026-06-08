@@ -13,7 +13,6 @@ from astrbot.api import logger
 
 from ..seer_data.image import (
     ElementTypeImageGetter,
-    MintmarkBodyImageGetter,
     PetBodyImageGetter,
     PetHeadImageGetter,
 )

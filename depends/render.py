@@ -152,7 +152,6 @@ class LocalRenderer:
 
 
 _renderer: LocalRenderer | None = None
-_lock = asyncio.Lock()
 
 
 def get_renderer() -> LocalRenderer:

@@ -1,11 +1,10 @@
 """Common query helpers for command handlers."""
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 
 from astrbot.api.event import AstrMessageEvent
 from astrbot.api import logger
 from astrbot.core.utils.session_waiter import session_waiter, SessionController
-import astrbot.api.message_components as Comp
 
 
 async def multi_select_query(

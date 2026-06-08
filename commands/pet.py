@@ -11,7 +11,7 @@ from ..seer_data.db import (
     PetSkinDataGetter,
     db_manager,
 )
-from ..seer_data.image import PetBodyImageGetter, PetHeadImageGetter
+from ..seer_data.image import PetBodyImageGetter
 from ..render.pet_info import render_pet_info_data, PET_TEMPLATE
 from ..depends.render import render_html_to_bytes
 from ..utils.image import save_bytes_to_temp_file

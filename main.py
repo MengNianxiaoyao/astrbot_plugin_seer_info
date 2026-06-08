@@ -14,7 +14,6 @@ from .seer_data.db import (
     db_manager,
     register_database,
     register_local_database,
-    get_plugin_db_path,
     cancel_sync_tasks,
 )
 from .depends.render import close_renderer

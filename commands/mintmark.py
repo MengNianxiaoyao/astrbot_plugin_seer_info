@@ -5,7 +5,6 @@ import astrbot.api.message_components as Comp
 
 from ..seer_data.db import MintmarkDataGetter, GemDataGetter
 from ..seer_data.image import MintmarkBodyImageGetter
-from ..constants import _item_desc_fmt
 from ..utils.image import save_bytes_to_temp_file
 from ._common import multi_select_query
 

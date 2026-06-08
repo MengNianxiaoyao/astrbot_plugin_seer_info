@@ -14,7 +14,7 @@ class MiscCommands:
     async def preview_cmd(self, event: AstrMessageEvent):
         """获取下周预告图"""
         image_bytes = await PreviewImageGetter.get_bytes("")
-        temp_path = await save_bytes_to_temp_file(image_bytes)
+        temp_path = save_bytes_to_temp_file(image_bytes)
         from astrbot.api.message_components import Comp
         yield event.chain_result([
             Comp.Image.fromFileSystem(temp_path),

@@ -2,11 +2,9 @@
 Image fetching dependencies for SeerInfo plugin.
 """
 
-import asyncio
 from typing import Callable
 
 import aiohttp
-from astrbot.api import logger
 
 
 class GetImage:
@@ -126,14 +124,6 @@ BattleEffectImageGetter = GetImage(
     "https://raw.githubusercontent.com/SeerAPI/seer-unity-assets/refs/heads/main/newseer/assets/art/ui/assets/battleeffect/abnormal/{}.png",
 )
 
-AvatarHeadImageGetter = GetImage(
-    "https://cnb.cool/SeerAPI/seer-unity-assets/-/git/raw/main/newseer/assets/art/ui/assets/avatar/head/{}.png",
-)
-
-AvatarFrameImageGetter = GetImage(
-    "https://cnb.cool/SeerAPI/seer-unity-assets/-/git/raw/main/newseer/assets/art/ui/assets/avatar/frame/{}.png",
-)
-
 PreviewImageGetter = GetImage(
     "https://cnb.cool/HurryWang/seer-unity-preview-img-dumper-cnb/-/git/raw/master/img/preview.png",
 )
@@ -149,7 +139,5 @@ __all__ = [
     "EquipImageGetter",
     "TitleImageGetter",
     "BattleEffectImageGetter",
-    "AvatarHeadImageGetter",
-    "AvatarFrameImageGetter",
     "PreviewImageGetter",
 ]
