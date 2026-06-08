@@ -2,7 +2,7 @@ name: astrbot_plugin_seer_info
 display_name: 赛尔号数据查询插件
 desc: 赛尔号信息查询插件，支持精灵、刻印、装备等数据查询
 author: 梦念逍遥
-version: 1.0.0
+version: 1.0.1
 astrbot_version: ">=4.16"
 homepage: https://github.com/MengNianxiaoyao/astrbot_plugin_seer_info
 support_platforms:
