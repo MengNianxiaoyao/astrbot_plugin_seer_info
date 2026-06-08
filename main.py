@@ -15,6 +15,7 @@ from .seer_data.db import (
     register_database,
     register_local_database,
     get_plugin_db_path,
+    cancel_sync_tasks,
 )
 from .depends.render import close_renderer
 from .commands import (
@@ -88,6 +89,8 @@ class SeerInfoPlugin(Star):
 
     async def terminate(self):
         logger.info("SeerInfo 插件已卸载")
+        cancel_sync_tasks()
+        db_manager.dispose_all()
         if self.config.get("render_mode", "local") == "local":
             await close_renderer()
 

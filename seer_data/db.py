@@ -18,16 +18,13 @@ from seerapi_models import (
     PetORM,
     PetSkinORM,
     MintmarkORM,
-    MintmarkClassCategoryORM,
     GemORM,
-    GemCategoryORM,
     SuitORM,
     EquipORM,
     TitlePartORM,
     TypeCombinationORM,
     ElementTypeORM,
     BattleEffectORM,
-    ErrorCodeORM,
 )
 from seerapi_models.build_model import BaseResModel
 from sqlalchemy import text
@@ -91,13 +88,6 @@ class DatabaseManager:
             poolclass=StaticPool,
         )
 
-    def register(self, name: str) -> None:
-        """注册一个命名的内存数据库引擎。若同名引擎已存在，先释放旧引擎。"""
-        if name in self._engines:
-            self._engines[name].dispose()
-        self._engines[name] = self._create_memory_engine()
-        logger.debug(f"已注册内存数据库引擎 '{name}'")
-
     def register_post_load_hook(
         self, name: str, hook: Callable[[Engine], None]
     ) -> None:
@@ -160,15 +150,7 @@ class DatabaseManager:
 
     def is_database_loaded(self, name: str) -> bool:
         """检查数据库是否已加载（有实际数据）。"""
-        if name not in self._engines:
-            return False
-        try:
-            engine = self._engines[name]
-            with engine.connect() as conn:
-                result = conn.execute(text("SELECT COUNT(*) FROM pet")).fetchone()
-                return result and result[0] > 0
-        except Exception:
-            return False
+        return name in self._engines
 
     def dispose_all(self) -> None:
         """释放所有引擎的连接池。"""
@@ -179,6 +161,7 @@ class DatabaseManager:
 
 
 db_manager: Final[DatabaseManager] = DatabaseManager()
+_sync_tasks: dict[str, asyncio.Task] = {}
 
 
 def register_database(
@@ -188,12 +171,22 @@ def register_database(
     sync_interval_minutes: int = 60,
     get_fingerprint: Callable[[aiohttp.ClientSession], Any] | None = None,
 ):
-    db_manager.register(name)
-
     async def sync_task():
-        await sync_database(name, sync_url, get_fingerprint)
+        while True:
+            await sync_database(name, sync_url, get_fingerprint)
+            logger.info(f"数据库 '{name}' 将在 {sync_interval_minutes} 分钟后再次检查")
+            await asyncio.sleep(sync_interval_minutes * 60)
 
-    asyncio.create_task(sync_task())
+    _sync_tasks[name] = asyncio.create_task(sync_task())
+
+
+def cancel_sync_tasks() -> None:
+    """取消所有同步任务。"""
+    for name, task in _sync_tasks.items():
+        if not task.done():
+            task.cancel()
+            logger.debug(f"已取消数据库 '{name}' 的同步任务")
+    _sync_tasks.clear()
 
 
 def register_local_database(name: str):
@@ -206,7 +199,6 @@ def register_local_database(name: str):
         logger.warning(f"本地文件 '{file_path}' 不存在，跳过注册 {name}")
         return
 
-    db_manager.register(name)
     db_manager.load_from_file(name, file_path)
 
 
@@ -219,63 +211,59 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
     sha256_path = plugin_db_path + ".sha256"
 
     try:
-        need_download = True
-
-        if plugin_db_file.exists() and get_fingerprint:
-            try:
-                async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession() as session:
+            if plugin_db_file.exists() and get_fingerprint:
+                try:
                     remote_fingerprint = await get_fingerprint(session)
 
-                local_fingerprint = None
-                if os.path.exists(sha256_path):
-                    local_fingerprint = Path(sha256_path).read_text().strip()
+                    local_fingerprint = None
+                    if os.path.exists(sha256_path):
+                        local_fingerprint = Path(sha256_path).read_text().strip()
 
-                if remote_fingerprint and remote_fingerprint == local_fingerprint:
-                    logger.info(f"数据库 '{name}' 指纹未变化，使用本地缓存")
-                    need_download = False
-                    db_manager.register(name)
-                    db_manager.load_from_file(name, plugin_db_path)
-                    return
-            except Exception as e:
-                logger.warning(f"指纹检查失败: {e}，将继续下载")
+                    if remote_fingerprint and remote_fingerprint == local_fingerprint:
+                        if db_manager.is_database_loaded(name):
+                            logger.info(f"数据库 '{name}' 指纹未变化，跳过更新")
+                        else:
+                            logger.info(f"数据库 '{name}' 指纹未变化，使用本地缓存")
+                            db_manager.load_from_file(name, plugin_db_path)
+                        return
+                except Exception as e:
+                    logger.warning(f"指纹检查失败: {e}，将继续下载")
 
-        if need_download:
             logger.info(f"开始从 {sync_url} 下载数据库 '{name}'...")
-            async with aiohttp.ClientSession() as session:
-                async with session.get(sync_url, allow_redirects=True) as resp:
-                    resp.raise_for_status()
-                    data = await resp.read()
+            async with session.get(sync_url, allow_redirects=True) as resp:
+                resp.raise_for_status()
+                data = await resp.read()
 
             plugin_db_file.parent.mkdir(parents=True, exist_ok=True)
             plugin_db_file.write_bytes(data)
 
             if get_fingerprint:
                 try:
-                    async with aiohttp.ClientSession() as session:
-                        remote_fp = await get_fingerprint(session)
-                        Path(sha256_path).write_text(remote_fp.strip())
-                        logger.info(f"已保存指纹: {remote_fp.strip()}")
+                    remote_fp = await get_fingerprint(session)
+                    Path(sha256_path).write_text(remote_fp.strip())
+                    logger.info(f"已保存指纹: {remote_fp.strip()}")
                 except Exception as e:
                     logger.warning(f"保存指纹失败: {e}")
 
             size_mb = len(data) / (1024 * 1024)
             logger.info(f"数据库 '{name}' 已下载，大小: {size_mb:.2f} MB")
 
-            db_manager.register(name)
             db_manager.load_from_file(name, plugin_db_path)
 
     except Exception as e:
         logger.error(f"数据库 '{name}' 同步失败: {e}")
 
 
+_IGNORED_CHARS = ".·・•‧∙⋅。—–-_/ "
+_STRIP_SPECIAL_RE = re.compile(f"[{re.escape(_IGNORED_CHARS)}]")
+
+
 def _strip_special(text: str) -> str:
-    _IGNORED_CHARS = ".·・•‧∙⋅。—–-_/ "
-    pattern = re.compile(f"[{re.escape(_IGNORED_CHARS)}]")
-    return pattern.sub("", text)
+    return _STRIP_SPECIAL_RE.sub("", text)
 
 
 def _col_strip_special(column: Any) -> Any:
-    _IGNORED_CHARS = ".·・•‧∙⋅。—–-_/ "
     expr = column
     for char in _IGNORED_CHARS:
         expr = func.replace(expr, char, "")
@@ -607,6 +595,8 @@ __all__ = [
     "db_manager",
     "register_database",
     "register_local_database",
+    "get_plugin_db_path",
+    "cancel_sync_tasks",
     "PetDataGetter",
     "MintmarkDataGetter",
     "GemDataGetter",

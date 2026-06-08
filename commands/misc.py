@@ -1,25 +1,20 @@
 """Misc commands: 下周预告, 开服查询, 帮助."""
 
 import re
-import tempfile
 from astrbot.api.event import AstrMessageEvent
 import httpx
 
 from ..seer_data.image import PreviewImageGetter
+from ..utils.image import save_bytes_to_temp_file
 
 
 class MiscCommands:
     """Handler for misc commands: preview, server info, help."""
 
-    async def _save_bytes_to_temp_file(self, image_bytes: bytes) -> str:
-        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
-            f.write(image_bytes)
-            return f.name
-
     async def preview_cmd(self, event: AstrMessageEvent):
         """获取下周预告图"""
         image_bytes = await PreviewImageGetter.get_bytes("")
-        temp_path = await self._save_bytes_to_temp_file(image_bytes)
+        temp_path = await save_bytes_to_temp_file(image_bytes)
         from astrbot.api.message_components import Comp
         yield event.chain_result([
             Comp.Image.fromFileSystem(temp_path),
