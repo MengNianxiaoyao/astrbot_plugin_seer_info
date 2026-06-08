@@ -6,8 +6,8 @@ from astrbot.api import logger
 from astrbot.core.utils.session_waiter import session_waiter, SessionController
 import astrbot.api.message_components as Comp
 
-from ..depends.db import BattleEffectDataGetter, db_manager
-from ..depends.image import BattleEffectImageGetter
+from ..seer_data.db import BattleEffectDataGetter, db_manager
+from ..seer_data.image import BattleEffectImageGetter
 
 
 class EffectCommands:

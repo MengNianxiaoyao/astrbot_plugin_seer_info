@@ -5,7 +5,7 @@ import tempfile
 from astrbot.api.event import AstrMessageEvent
 import httpx
 
-from ..depends.image import PreviewImageGetter
+from ..seer_data.image import PreviewImageGetter
 
 
 class MiscCommands:

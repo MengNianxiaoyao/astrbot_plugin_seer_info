@@ -2,7 +2,7 @@
 Database dependencies for SeerInfo plugin.
 """
 
-from .db import (
+from ..seer_data.db import (
     db_manager,
     register_database,
     register_local_database,

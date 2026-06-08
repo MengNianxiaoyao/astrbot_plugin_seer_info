@@ -6,8 +6,8 @@ from astrbot.api import logger
 from astrbot.core.utils.session_waiter import session_waiter, SessionController
 import astrbot.api.message_components as Comp
 
-from ..depends.db import TitleDataGetter, db_manager
-from ..depends.image import TitleImageGetter
+from ..seer_data.db import TitleDataGetter, db_manager
+from ..seer_data.image import TitleImageGetter
 
 
 class TitleCommands:

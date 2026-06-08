@@ -4,7 +4,7 @@ from astrbot.api.event import AstrMessageEvent
 from astrbot.api import logger
 from astrbot.core.utils.session_waiter import session_waiter, SessionController
 
-from ..depends.db import TypeCombinationDataGetter, db_manager
+from ..seer_data.db import TypeCombinationDataGetter, db_manager
 from ..render.type_matchup import render_type_matchup
 
 

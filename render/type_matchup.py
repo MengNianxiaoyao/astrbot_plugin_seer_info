@@ -9,9 +9,9 @@ from seerapi_models import TypeCombinationORM
 
 from astrbot.api import logger
 
-from ..depends.image import ElementTypeImageGetter
+from ..seer_data.image import ElementTypeImageGetter
 from ..depends.type_calc import calc_attack_table, calc_defense_table
-from ..depends.db import db_manager
+from ..seer_data.db import db_manager
 from ..depends.render import render_html_to_bytes
 from ._common import to_data_uri
 

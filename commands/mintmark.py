@@ -6,8 +6,8 @@ from astrbot.api import logger
 from astrbot.core.utils.session_waiter import session_waiter, SessionController
 import astrbot.api.message_components as Comp
 
-from ..depends.db import MintmarkDataGetter, GemDataGetter, db_manager
-from ..depends.image import MintmarkBodyImageGetter
+from ..seer_data.db import MintmarkDataGetter, GemDataGetter, db_manager
+from ..seer_data.image import MintmarkBodyImageGetter
 from ..constants import _item_desc_fmt
 
 

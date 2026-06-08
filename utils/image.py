@@ -3,6 +3,7 @@ Utility functions for SeerInfo plugin.
 """
 
 import asyncio
+import base64
 from typing import Callable
 
 import aiohttp
@@ -61,4 +62,9 @@ def create_fallback_image(error_text: str = "获取图片失败") -> bytes:
     return buffer.getvalue()
 
 
-__all__ = ["GetImage", "create_fallback_image"]
+def to_data_uri(data: bytes, mime_type: str = "image/png") -> str:
+    b64 = base64.b64encode(data).decode("ascii")
+    return f"data:{mime_type};base64,{b64}"
+
+
+__all__ = ["GetImage", "create_fallback_image", "to_data_uri"]

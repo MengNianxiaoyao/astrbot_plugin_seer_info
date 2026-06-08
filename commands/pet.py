@@ -6,13 +6,13 @@ from astrbot.api import logger
 from astrbot.core.utils.session_waiter import session_waiter, SessionController
 import astrbot.api.message_components as Comp
 
-from ..depends.db import (
+from ..seer_data.db import (
     PetORM,
     PetDataGetter,
     PetSkinDataGetter,
     db_manager,
 )
-from ..depends.image import PetBodyImageGetter, PetHeadImageGetter
+from ..seer_data.image import PetBodyImageGetter, PetHeadImageGetter
 from ..render.pet_info import render_pet_info_data, PET_TEMPLATE
 from ..depends.render import render_html_to_bytes
 
@@ -67,12 +67,12 @@ class PetCommands:
             yield event.plain_result(f"❌重名超过20个，请重新检索关键词！")
             return
 
-        async def prepare_result(pet_obj):
-            return await self._render_pet_info_html(pet_obj, sessions)
-
         if len(pets) == 1:
             yield event.image_result(await prepare_result(pets[0]))
             return
+
+        async def prepare_result(pet_obj):
+            return await self._render_pet_info_html(pet_obj, sessions)
 
         async def send_result(pet_obj, evt):
             await evt.send(evt.image_result(await prepare_result(pet_obj)))

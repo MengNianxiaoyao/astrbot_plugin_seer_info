@@ -4,7 +4,6 @@ Uses Jinja2 templates with local Playwright rendering.
 """
 
 import asyncio
-import base64
 from pathlib import Path
 from typing import Any
 
@@ -12,18 +11,14 @@ from seerapi_models import PetORM
 
 from astrbot.api import logger
 
-from ..depends.image import (
+from ..seer_data.image import (
     ElementTypeImageGetter,
     MintmarkBodyImageGetter,
     PetBodyImageGetter,
     PetHeadImageGetter,
 )
 from ..utils.analyze_parser import AnalyzeDescParser, _ANALYZE_DESC_STYLES
-
-
-def to_data_uri(data: bytes, mime_type: str = "image/png") -> str:
-    b64 = base64.b64encode(data).decode("ascii")
-    return f"data:{mime_type};base64,{b64}"
+from ._common import to_data_uri
 
 
 TEMPLATE_PATH = "templates/pet_info"

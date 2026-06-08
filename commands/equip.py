@@ -6,8 +6,8 @@ from astrbot.api import logger
 from astrbot.core.utils.session_waiter import session_waiter, SessionController
 import astrbot.api.message_components as Comp
 
-from ..depends.db import SuitDataGetter, EquipDataGetter, db_manager
-from ..depends.image import SuitImageGetter, EquipImageGetter
+from ..seer_data.db import SuitDataGetter, EquipDataGetter, db_manager
+from ..seer_data.image import SuitImageGetter, EquipImageGetter
 from ..constants import EQUIP_PART_TYPE_MAP
 
 
