@@ -110,22 +110,20 @@ class AnalyzeDescParser:
 
     _cache: dict[str, "AnalyzeDescParser"] = {}
 
-    def __new__(cls, desc: str) -> "AnalyzeDescParser":
+    def __init__(self, desc: str) -> None:
+        self.desc = desc
+        self.lines: list[DescLine] = [_parse_desc_line(raw) for raw in desc.split("|")]
+
+    @classmethod
+    def from_cache(cls, desc: str) -> "AnalyzeDescParser":
         cached = cls._cache.get(desc)
         if cached is not None:
             return cached
-        instance = super().__new__(cls)
+        instance = cls(desc)
         cls._cache[desc] = instance
         if len(cls._cache) > 512:
             cls._cache.clear()
         return instance
-
-    def __init__(self, desc: str) -> None:
-        if hasattr(self, "_initialized"):
-            return
-        self._initialized = True
-        self.desc = desc
-        self.lines: list[DescLine] = [_parse_desc_line(raw) for raw in desc.split("|")]
 
     def lines_by_sprite(self, sprite: str) -> list[DescLine]:
         return [line for line in self.lines if line.sprite == sprite]
@@ -170,7 +168,7 @@ def parse_analyze_desc(desc: str) -> str:
     """解析魂印/技能描述，返回HTML（带缓存）"""
     if not desc:
         return ""
-    parser = AnalyzeDescParser(desc)
+    parser = AnalyzeDescParser.from_cache(desc)
     return parser.to_html(_ANALYZE_DESC_STYLES)
 
 

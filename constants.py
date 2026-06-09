@@ -7,7 +7,7 @@ from seerapi_models.mintmark import AbilityPartORM, SkillPartORM, UniversalPartO
 
 EQUIP_PART_TYPE_MAP = {
     0: "头部",
-    1: "眼部",
+    1: "面部",
     2: "腰部",
     3: "手部",
     4: "脚部",

@@ -81,7 +81,7 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
                         effect_info = getattr(e, 'analyze_info', None) or getattr(e, 'info', '')
                         effects.append({
                             'id': getattr(e, 'effect_id', 0),
-                            'info': AnalyzeDescParser(effect_info).to_html(_ANALYZE_DESC_STYLES) if effect_info else '',
+                            'info': AnalyzeDescParser.from_cache(effect_info).to_html(_ANALYZE_DESC_STYLES) if effect_info else '',
                         })
 
                 hide_effect_desc = getattr(skill_hide_effect, 'description', None) if skill_hide_effect else None
@@ -157,7 +157,7 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
     if hasattr(pet, 'soulmark') and pet.soulmark:
         for sm in pet.soulmark[:2]:
             sm_desc = getattr(sm, 'analyze_desc', '') or getattr(sm, 'desc', '')
-            parser = AnalyzeDescParser(sm_desc or '')
+            parser = AnalyzeDescParser.from_cache(sm_desc or '')
             soulmarks.append({
                 'desc': parser.to_html(_ANALYZE_DESC_STYLES),
                 'intensified': getattr(sm, 'intensified', False),

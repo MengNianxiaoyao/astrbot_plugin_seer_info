@@ -88,22 +88,24 @@ class GetImage:
 
 
 async def _fallback_image(error: Exception) -> bytes:
-    from PIL import Image
+    global _fallback_cache
+    if _fallback_cache is not None:
+        return _fallback_cache
+
+    from PIL import Image, ImageDraw
     from io import BytesIO
 
-    if isinstance(error, aiohttp.ClientError):
-        text = "获取图片失败！"
-    else:
-        text = "获取图片失败！"
-
     img = Image.new('RGB', (300, 100), color='white')
-    from PIL import ImageDraw
     draw = ImageDraw.Draw(img)
-    draw.text((10, 40), text, fill='red')
+    draw.text((10, 40), "获取图片失败！", fill='red')
 
     buffer = BytesIO()
     img.save(buffer, format='PNG')
-    return buffer.getvalue()
+    _fallback_cache = buffer.getvalue()
+    return _fallback_cache
+
+
+_fallback_cache: bytes | None = None
 
 
 PetBodyImageGetter = GetImage(

@@ -115,30 +115,31 @@ class LocalRenderer:
     ) -> bytes:
         page = await self._get_page()
         try:
-            await page.set_viewport_size({"width": viewport_width, "height": 600})
-            await page.set_content(html_content, wait_until="load", timeout=timeout)
-            return await page.screenshot(
-                type="png",
-                full_page=True,
-                timeout=timeout,
-                animations="disabled",
-                caret="hide",
-            )
+            return await self._screenshot(page, html_content, viewport_width, timeout)
         except TargetClosedError:
             self._page = None
             page = await self._get_page()
-            await page.set_viewport_size({"width": viewport_width, "height": 600})
-            await page.set_content(html_content, wait_until="load", timeout=timeout)
-            return await page.screenshot(
-                type="png",
-                full_page=True,
-                timeout=timeout,
-                animations="disabled",
-                caret="hide",
-            )
+            return await self._screenshot(page, html_content, viewport_width, timeout)
         except Exception as e:
-            logger.error(f"Failed to render HTML to image: {e}")
+            logger.error(f"渲染图片失败: {e}")
             raise
+
+    async def _screenshot(
+        self,
+        page: Page,
+        html_content: str,
+        viewport_width: int,
+        timeout: float,
+    ) -> bytes:
+        await page.set_viewport_size({"width": viewport_width, "height": 600})
+        await page.set_content(html_content, wait_until="load", timeout=timeout)
+        return await page.screenshot(
+            type="png",
+            full_page=True,
+            timeout=timeout,
+            animations="disabled",
+            caret="hide",
+        )
 
     async def close(self):
         """关闭浏览器实例"""
