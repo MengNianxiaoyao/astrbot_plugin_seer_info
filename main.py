@@ -10,14 +10,14 @@ from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star
 from astrbot.api import logger
 
-from .seer_data.db import (
+from .data.db import (
     db_manager,
     register_database,
     register_local_database,
     cancel_sync_tasks,
 )
-from .depends.render import close_renderer
-from .seer_data.image import close_shared_session
+from .core.renderer import close_renderer
+from .data.image_fetcher import close_shared_session
 from .commands import (
     PetCommands,
     AttributeCommands,

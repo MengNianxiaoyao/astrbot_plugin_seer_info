@@ -3,9 +3,9 @@
 from astrbot.api.event import AstrMessageEvent
 import astrbot.api.message_components as Comp
 
-from ..seer_data.db import TitleDataGetter
-from ..seer_data.image import TitleImageGetter
-from ..utils.image import save_bytes_to_temp_file
+from ..data.db import TitleDataGetter
+from ..data.image_fetcher import TitleImageGetter
+from ..data.cache import save_bytes_to_temp_file
 from ._common import multi_select_query
 
 

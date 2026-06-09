@@ -6,6 +6,8 @@ from typing import Callable
 
 import aiohttp
 
+from astrbot.api import logger
+
 _shared_session: aiohttp.ClientSession | None = None
 _image_cache: dict[str, bytes] = {}  # url -> image bytes, LRU-style memory cache
 _MAX_CACHE_SIZE = 128
@@ -25,8 +27,10 @@ async def close_shared_session():
     global _shared_session
     if _shared_session and not _shared_session.closed:
         await _shared_session.close()
+        logger.info("已关闭共享的 HTTP 会话")
         _shared_session = None
     _image_cache.clear()
+    logger.info("已清除图片缓存")
 
 
 class GetImage:

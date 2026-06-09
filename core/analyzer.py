@@ -7,6 +7,7 @@ import html
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 
 _TAG_RE = re.compile(
@@ -105,9 +106,24 @@ def _parse_desc_line(raw: str) -> DescLine:
 
 
 class AnalyzeDescParser:
-    """赛尔号Analyze描述标签解析器"""
+    """赛尔号Analyze描述标签解析器（带缓存）"""
+
+    _cache: dict[str, "AnalyzeDescParser"] = {}
+
+    def __new__(cls, desc: str) -> "AnalyzeDescParser":
+        cached = cls._cache.get(desc)
+        if cached is not None:
+            return cached
+        instance = super().__new__(cls)
+        cls._cache[desc] = instance
+        if len(cls._cache) > 512:
+            cls._cache.clear()
+        return instance
 
     def __init__(self, desc: str) -> None:
+        if hasattr(self, "_initialized"):
+            return
+        self._initialized = True
         self.desc = desc
         self.lines: list[DescLine] = [_parse_desc_line(raw) for raw in desc.split("|")]
 
@@ -149,8 +165,9 @@ _ANALYZE_DESC_STYLES: dict[str, Callable[..., str]] = {
 }
 
 
+@lru_cache(maxsize=256)
 def parse_analyze_desc(desc: str) -> str:
-    """解析魂印/技能描述，返回HTML"""
+    """解析魂印/技能描述，返回HTML（带缓存）"""
     if not desc:
         return ""
     parser = AnalyzeDescParser(desc)

@@ -28,7 +28,7 @@ async def multi_select_query(
         result_type: 单结果返回方式，"chain" 或 "image"
         error_log_name: 错误日志标识
     """
-    from ..seer_data.db import db_manager
+    from ..data.db import db_manager
 
     if not arg.strip():
         yield event.plain_result(f"❌请提供要查询的{label}名称。\n用法：/{label} <名称>")

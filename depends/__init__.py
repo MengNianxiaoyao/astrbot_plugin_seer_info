@@ -1,3 +1,0 @@
-"""
-Dependencies for SeerInfo plugin.
-"""

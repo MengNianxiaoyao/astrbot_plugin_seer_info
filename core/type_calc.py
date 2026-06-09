@@ -8,8 +8,14 @@ _IMMUNE = 0
 
 RelationMap = dict[tuple[int, int], float]
 
+_relation_cache: RelationMap | None = None
+_all_combos_cache: list[TypeCombinationORM] | None = None
+
 
 def _load_relations(session: Session) -> RelationMap:
+    global _relation_cache
+    if _relation_cache is not None:
+        return _relation_cache
     rows = session.exec(
         select(
             ElementTypeRelationORM.source_id,
@@ -17,7 +23,14 @@ def _load_relations(session: Session) -> RelationMap:
             ElementTypeRelationORM.multiple,
         )
     ).all()
-    return {(src, tgt): mul for src, tgt, mul in rows}
+    _relation_cache = {(src, tgt): mul for src, tgt, mul in rows}
+    return _relation_cache
+
+
+def invalidate_relation_cache():
+    global _relation_cache, _all_combos_cache
+    _relation_cache = None
+    _all_combos_cache = None
 
 
 def _lookup(table: RelationMap, atk_id: int, def_id: int) -> float:
@@ -76,10 +89,11 @@ def calc_attack_table(
     session: Session,
     attacker: TypeCombinationORM,
 ) -> list[tuple[TypeCombinationORM, float]]:
+    global _all_combos_cache
     table = _load_relations(session)
-    all_combos: list[TypeCombinationORM] = list(
-        session.exec(select(TypeCombinationORM)).all()
-    )
+    if _all_combos_cache is None:
+        _all_combos_cache = list(session.exec(select(TypeCombinationORM)).all())
+    all_combos = _all_combos_cache
     return [(combo, _calc_multiplier(table, attacker, combo)) for combo in all_combos]
 
 
@@ -87,8 +101,9 @@ def calc_defense_table(
     session: Session,
     defender: TypeCombinationORM,
 ) -> list[tuple[TypeCombinationORM, float]]:
+    global _all_combos_cache
     table = _load_relations(session)
-    all_combos: list[TypeCombinationORM] = list(
-        session.exec(select(TypeCombinationORM)).all()
-    )
+    if _all_combos_cache is None:
+        _all_combos_cache = list(session.exec(select(TypeCombinationORM)).all())
+    all_combos = _all_combos_cache
     return [(combo, _calc_multiplier(table, combo, defender)) for combo in all_combos]

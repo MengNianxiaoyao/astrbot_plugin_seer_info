@@ -5,16 +5,16 @@ from astrbot.api import logger
 from astrbot.core.utils.session_waiter import session_waiter, SessionController
 import astrbot.api.message_components as Comp
 
-from ..seer_data.db import (
+from ..data.db import (
     PetORM,
     PetDataGetter,
     PetSkinDataGetter,
     db_manager,
 )
-from ..seer_data.image import PetBodyImageGetter
-from ..render.pet_info import render_pet_info_data, PET_TEMPLATE
-from ..depends.render import render_html_to_bytes
-from ..utils.image import save_bytes_to_temp_file
+from ..data.image_fetcher import PetBodyImageGetter
+from ..renderers.pet_info import render_pet_info_data, PET_TEMPLATE
+from ..core.renderer import render_html_to_bytes
+from ..data.cache import save_bytes_to_temp_file
 from ._common import multi_select_query
 
 

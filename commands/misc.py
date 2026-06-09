@@ -4,8 +4,8 @@ import re
 from astrbot.api.event import AstrMessageEvent
 import httpx
 
-from ..seer_data.image import PreviewImageGetter
-from ..utils.image import save_bytes_to_temp_file
+from ..data.image_fetcher import PreviewImageGetter
+from ..data.cache import save_bytes_to_temp_file
 
 
 class MiscCommands:

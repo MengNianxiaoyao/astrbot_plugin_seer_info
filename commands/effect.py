@@ -3,9 +3,9 @@
 from astrbot.api.event import AstrMessageEvent
 import astrbot.api.message_components as Comp
 
-from ..seer_data.db import BattleEffectDataGetter
-from ..seer_data.image import BattleEffectImageGetter
-from ..utils.image import save_bytes_to_temp_file
+from ..data.db import BattleEffectDataGetter
+from ..data.image_fetcher import BattleEffectImageGetter
+from ..data.cache import save_bytes_to_temp_file
 from ._common import multi_select_query
 
 

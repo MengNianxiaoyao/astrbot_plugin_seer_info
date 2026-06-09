@@ -11,12 +11,12 @@ from seerapi_models import PetORM
 
 from astrbot.api import logger
 
-from ..seer_data.image import (
+from ..data.image_fetcher import (
     ElementTypeImageGetter,
     PetBodyImageGetter,
     PetHeadImageGetter,
 )
-from ..utils.analyze_parser import AnalyzeDescParser, _ANALYZE_DESC_STYLES
+from ..core.analyzer import AnalyzeDescParser, _ANALYZE_DESC_STYLES
 from ._common import to_data_uri
 
 
@@ -56,7 +56,7 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
         if icon_path.exists():
             pet_gender_icon = to_data_uri(icon_path.read_bytes())
     except Exception as e:
-        logger.debug(f"获取性别图标失败: {e}")
+        logger.error(f"获取性别图标失败: {e}")
 
     pet_type_id = int(getattr(pet.type, 'id', 0)) if hasattr(pet, 'type') and getattr(pet.type, 'id', None) is not None else 0
     pet_type_name = getattr(pet.type, 'name', '') if hasattr(pet, 'type') else ''
@@ -135,7 +135,7 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
             type_icons[str(tid)] = to_data_uri(type_bytes_list[i])
         type_icons["prop"] = to_data_uri(type_bytes_list[-1])
     except Exception as e:
-        logger.debug(f"获取精灵图标失败: {e}")
+        logger.error(f"获取精灵图标失败: {e}")
 
     stats = {}
     if hasattr(pet, 'base_stats') and pet.base_stats:

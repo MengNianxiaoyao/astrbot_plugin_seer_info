@@ -36,6 +36,9 @@ from astrbot.api import logger
 from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 
 
+from ..core.type_calc import invalidate_relation_cache
+
+
 _ALIASES_DB = "aliases"
 
 
@@ -76,11 +79,13 @@ class DatabaseManager:
     @staticmethod
     def _create_memory_engine() -> Engine:
         """创建一个共享连接的内存 SQLite 引擎。"""
-        return create_engine(
+        engine = create_engine(
             "sqlite://",
             connect_args={"check_same_thread": False},
             poolclass=StaticPool,
         )
+        _register_strip_func(engine)
+        return engine
 
     def register_post_load_hook(
         self, name: str, hook: Callable[[Engine], None]
@@ -112,6 +117,8 @@ class DatabaseManager:
         self._engines[name] = new_engine
         if old_engine is not None:
             old_engine.dispose()
+        if name == "seerapi":
+            invalidate_relation_cache()
         logger.info(f"已从文件导入数据到内存数据库 '{name}'")
 
     def get_engine(self, name: str) -> Engine | None:
@@ -150,7 +157,7 @@ class DatabaseManager:
         """释放所有引擎的连接池。"""
         for name, engine in self._engines.items():
             engine.dispose()
-            logger.debug(f"已释放数据库引擎 '{name}'")
+            logger.info(f"已释放数据库引擎 '{name}'")
         self._engines.clear()
 
 
@@ -179,7 +186,7 @@ def cancel_sync_tasks() -> None:
     for name, task in _sync_tasks.items():
         if not task.done():
             task.cancel()
-            logger.debug(f"已取消数据库 '{name}' 的同步任务")
+            logger.info(f"已取消数据库 '{name}' 的同步任务")
     _sync_tasks.clear()
 
 
@@ -218,7 +225,7 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
                         if db_manager.is_database_loaded(name):
                             logger.info(f"数据库 '{name}' 指纹未变化，跳过更新")
                         else:
-                            logger.info(f"数据库 '{name}' 指纹未变化，使用本地缓存")
+                            logger.info(f"数据库 '{name}' 指纹未变化，使用本地数据")
                             db_manager.load_from_file(name, plugin_db_path)
                         return
                 except Exception as e:
@@ -257,11 +264,22 @@ def _strip_special(text: str) -> str:
     return _STRIP_SPECIAL_RE.sub("", text)
 
 
+def _register_strip_func(engine: Engine) -> None:
+    """注册 SQLite 自定义函数，单次调用完成字符替换，避免 13 层嵌套 REPLACE。"""
+    def _sqlite_strip(text):
+        if text is None:
+            return None
+        for ch in _IGNORED_CHARS:
+            text = text.replace(ch, "")
+        return text
+
+    with engine.connect() as conn:
+        conn.connection.connection.create_function("_strip", 1, _sqlite_strip)
+        conn.commit()
+
+
 def _col_strip_special(column: Any) -> Any:
-    expr = column
-    for char in _IGNORED_CHARS:
-        expr = func.replace(expr, char, "")
-    return expr
+    return func._strip(column)
 
 
 _T_Model = TypeVar("_T_Model", bound=BaseResModel)
@@ -561,7 +579,14 @@ def _build_pinyin_fts(engine: Engine) -> None:
                 "source_table, pinyin_full, pinyin_initials, "
                 "tokenize='trigram')"
             ))
+            existing_tables = {
+                row[0] for row in conn.execute(
+                    text("SELECT name FROM sqlite_master WHERE type='table'")
+                ).fetchall()
+            }
             for source_table, query in _PINYIN_FTS_SOURCES.items():
+                if source_table not in existing_tables:
+                    continue
                 try:
                     rows = conn.execute(text(query)).fetchall()
                     for row_id, name in rows:
@@ -576,10 +601,10 @@ def _build_pinyin_fts(engine: Engine) -> None:
                             {"rowid": row_id, "src": source_table, "full": full, "initials": initials}
                         )
                 except Exception as e:
-                    logger.debug(f"拼音 FTS 索引填充失败 for {source_table}: {e}")
+                    logger.error(f"拼音 FTS 索引填充失败 for {source_table}: {e}")
             conn.commit()
     except Exception as e:
-        logger.debug(f"拼音 FTS 索引构建失败: {e}")
+        logger.error(f"拼音 FTS 索引构建失败: {e}")
 
 
 db_manager.register_post_load_hook("seerapi", _build_pinyin_fts)
