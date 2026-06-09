@@ -30,12 +30,14 @@ class LocalRenderer:
         self._playwright = None
         self._browser: Browser | None = None
         self._context: BrowserContext | None = None
+        self._page: Page | None = None
         self._lock = asyncio.Lock()
         self._env = SandboxedEnvironment(
             loader=jinja2.FileSystemLoader(str(self._get_templates_dir())),
             autoescape=jinja2.select_autoescape(["html", "xml"]),
             keep_trailing_newline=True,
         )
+        self._string_template_cache: dict[str, jinja2.Template] = {}  # template_string -> compiled
 
     @staticmethod
     def _get_templates_dir() -> Path:
@@ -52,7 +54,11 @@ class LocalRenderer:
                     args=[
                         "--disable-dev-shm-usage",
                         "--no-sandbox",
-                        "--disable-gpu",
+                        "--ignore-gpu-blocklist",
+                        "--enable-gpu-rasterization",
+                        "--enable-zero-copy",
+                        "--disable-features=PaintHolding",
+                        "--disable-ipc-flooding-protection",
                     ],
                 )
                 logger.info("Playwright 浏览器已启动")
@@ -71,6 +77,14 @@ class LocalRenderer:
                 ignore_https_errors=True,
             )
         return self._context
+
+    async def _get_page(self) -> Page:
+        """获取共享的渲染页面，复用避免开销"""
+        if self._page is not None and not self._page.is_closed():
+            return self._page
+        context = await self._get_context()
+        self._page = await context.new_page()
+        return self._page
 
     async def render_template(
         self,
@@ -99,40 +113,43 @@ class LocalRenderer:
         viewport_width: int,
         timeout: float,
     ) -> bytes:
-        context = await self._get_context()
-        page: Page | None = None
-        try:
-            page = await context.new_page()
-        except TargetClosedError:
-            logger.warning("Context closed, recreating...")
-            if self._context:
-                await self._context.close()
-            self._context = None
-            context = await self._get_context()
-            page = await context.new_page()
-
+        page = await self._get_page()
         try:
             await page.set_viewport_size({"width": viewport_width, "height": 600})
-            await page.set_content(html_content, wait_until="networkidle", timeout=timeout)
-
-            screenshot = await page.screenshot(
+            await page.set_content(html_content, wait_until="load", timeout=timeout)
+            return await page.screenshot(
                 type="png",
                 full_page=True,
                 timeout=timeout,
                 animations="disabled",
                 caret="hide",
             )
-            return screenshot
+        except TargetClosedError:
+            self._page = None
+            page = await self._get_page()
+            await page.set_viewport_size({"width": viewport_width, "height": 600})
+            await page.set_content(html_content, wait_until="load", timeout=timeout)
+            return await page.screenshot(
+                type="png",
+                full_page=True,
+                timeout=timeout,
+                animations="disabled",
+                caret="hide",
+            )
         except Exception as e:
             logger.error(f"Failed to render HTML to image: {e}")
             raise
-        finally:
-            if page:
-                await page.close()
 
     async def close(self):
         """关闭浏览器实例"""
         async with self._lock:
+            if self._page:
+                try:
+                    await self._page.close()
+                except Exception:
+                    pass
+                self._page = None
+
             if self._context:
                 try:
                     await self._context.close()
@@ -177,7 +194,11 @@ async def render_html_to_bytes(
     timeout: float = DEFAULT_TIMEOUT,
 ) -> bytes:
     renderer = get_renderer()
-    template = renderer._env.from_string(template_string)
+    template = renderer._string_template_cache.get(template_string)
+    if template is None:
+        template = renderer._env.from_string(template_string)
+        if len(renderer._string_template_cache) < 16:
+            renderer._string_template_cache[template_string] = template
     html_content = template.render(**data)
     return await renderer.render_string(
         html_content,

@@ -17,6 +17,7 @@ from .seer_data.db import (
     cancel_sync_tasks,
 )
 from .depends.render import close_renderer
+from .seer_data.image import close_shared_session
 from .commands import (
     PetCommands,
     AttributeCommands,
@@ -89,6 +90,7 @@ class SeerInfoPlugin(Star):
     async def terminate(self):
         logger.info("SeerInfo 插件已卸载")
         cancel_sync_tasks()
+        await close_shared_session()
         db_manager.dispose_all()
         if self.config.get("render_mode", "local") == "local":
             await close_renderer()

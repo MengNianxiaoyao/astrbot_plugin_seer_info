@@ -114,9 +114,11 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
     try:
         resource_id = getattr(pet, 'resource_id', None)
         if resource_id:
-            head_bytes = await PetHeadImageGetter.get_bytes(str(resource_id))
+            head_bytes, body_bytes = await asyncio.gather(
+                PetHeadImageGetter.get_bytes(str(resource_id)),
+                PetBodyImageGetter.get_bytes(str(resource_id)),
+            )
             pet_head_img = to_data_uri(head_bytes)
-            body_bytes = await PetBodyImageGetter.get_bytes(str(resource_id))
             pet_body_img = to_data_uri(body_bytes)
 
         skill_type_ids = [skill['type_id'] for skill in all_skills if skill.get('type_id')]

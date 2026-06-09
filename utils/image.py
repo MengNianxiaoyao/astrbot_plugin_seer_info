@@ -10,7 +10,7 @@ from pathlib import Path
 from astrbot.api import logger
 from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 
-_temp_file_cache: dict[str, str] = {}  # sha256 -> file_path
+_temp_file_cache: dict[str, str] = {}  # md5 -> file_path
 _cache_dir: str | None = None
 
 
@@ -23,12 +23,12 @@ def _get_cache_dir() -> str:
 
 
 def to_data_uri(data: bytes, mime_type: str = "image/png") -> str:
-    b64 = base64.b64encode(data).decode("ascii")
-    return f"data:{mime_type};base64,{b64}"
+    b64 = base64.b64encode(data)
+    return f"data:{mime_type};base64,{b64.decode()}"
 
 
 def save_bytes_to_temp_file(image_bytes: bytes, suffix: str = ".png") -> str:
-    key = hashlib.sha256(image_bytes).hexdigest()
+    key = hashlib.md5(image_bytes, usedforsecurity=False).hexdigest()
     cached = _temp_file_cache.get(key)
     if cached and os.path.exists(cached):
         logger.info(f"图片缓存命中: {os.path.basename(cached)}")

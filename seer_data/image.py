@@ -6,6 +6,28 @@ from typing import Callable
 
 import aiohttp
 
+_shared_session: aiohttp.ClientSession | None = None
+_image_cache: dict[str, bytes] = {}  # url -> image bytes, LRU-style memory cache
+_MAX_CACHE_SIZE = 128
+
+
+def _get_shared_session() -> aiohttp.ClientSession:
+    global _shared_session
+    if _shared_session is None or _shared_session.closed:
+        _shared_session = aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=30),
+            connector=aiohttp.TCPConnector(limit=10, limit_per_host=5),
+        )
+    return _shared_session
+
+
+async def close_shared_session():
+    global _shared_session
+    if _shared_session and not _shared_session.closed:
+        await _shared_session.close()
+        _shared_session = None
+    _image_cache.clear()
+
 
 class GetImage:
     def __init__(
@@ -21,18 +43,21 @@ class GetImage:
         self.url_templates = url_templates
         self.fallback = fallback
 
-    async def _fetch_image_bytes(self, url: str) -> bytes:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                response.raise_for_status()
-                return await response.read()
-
     async def get_bytes(self, arg: str) -> bytes:
+        session = _get_shared_session()
         last_error: Exception | None = None
         for template in self.url_templates:
             url = template.format(arg)
+            cached = _image_cache.get(url)
+            if cached is not None:
+                return cached
             try:
-                return await self._fetch_image_bytes(url)
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    data = await response.read()
+                    if len(_image_cache) < _MAX_CACHE_SIZE:
+                        _image_cache[url] = data
+                    return data
             except Exception as e:
                 last_error = e
                 continue
@@ -43,13 +68,13 @@ class GetImage:
         raise error
 
     async def get_image_url(self, arg: str) -> str:
+        session = _get_shared_session()
         for template in self.url_templates:
             url = template.format(arg)
             try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(url) as response:
-                        if response.status == 200:
-                            return url
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        return url
             except Exception:
                 continue
         return self.url_templates[0].format(arg)
@@ -131,6 +156,7 @@ PreviewImageGetter = GetImage(
 
 __all__ = [
     "GetImage",
+    "close_shared_session",
     "PetBodyImageGetter",
     "PetHeadImageGetter",
     "MintmarkBodyImageGetter",
