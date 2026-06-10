@@ -1,7 +1,6 @@
 """Render type matchup chart using HTML template."""
 
 import asyncio
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -13,18 +12,13 @@ from ..data.image_fetcher import ElementTypeImageGetter
 from ..core.type_calc import calc_attack_table, calc_defense_table
 from ..data.db import db_manager
 from ..core.renderer import render_html_to_bytes
+from ..data.cache import save_bytes_to_temp_file
 from ._common import to_data_uri
 
 TEMPLATE_PATH = "templates/type_matchup"
 TEMPLATE_NAME = "template.html.j2"
 
-
-def _get_template_path() -> str:
-    plugin_dir = Path(__file__).parent.parent
-    return str(plugin_dir / TEMPLATE_PATH / TEMPLATE_NAME)
-
-
-TYPE_MATCHUP_TEMPLATE = open(_get_template_path(), "r", encoding="utf-8").read()
+TYPE_MATCHUP_TEMPLATE = (Path(__file__).parent.parent / TEMPLATE_PATH / TEMPLATE_NAME).read_text(encoding="utf-8")
 
 
 async def build_type_matchup_render_data(type_combo: TypeCombinationORM) -> dict[str, Any]:
@@ -123,9 +117,7 @@ async def render_type_matchup(
             render_data,
             viewport_width=1200,
         )
-        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
-            f.write(image_bytes)
-            return f.name
+        return save_bytes_to_temp_file(image_bytes)
     else:
         return await html_render(
             TYPE_MATCHUP_TEMPLATE,

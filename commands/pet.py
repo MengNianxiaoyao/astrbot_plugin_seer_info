@@ -25,7 +25,7 @@ class PetCommands:
         self._is_local = is_local
         self._html_render = html_render
 
-    async def _render_pet_info_html(self, pet, sessions: dict) -> str:
+    async def _render_pet_info_html(self, pet) -> str:
         render_data = await render_pet_info_data(pet)
 
         if self._is_local:
@@ -64,7 +64,7 @@ class PetCommands:
             return
 
         if len(pets) == 1:
-            yield event.image_result(await self._render_pet_info_html(pets[0], sessions))
+            yield event.image_result(await self._render_pet_info_html(pets[0]))
             return
 
         prompt_items = [
@@ -74,7 +74,7 @@ class PetCommands:
         prompt_map = {str(i + 1): p["value"] for i, p in enumerate(prompt_items)}
 
         async def send_result(pet_obj, evt):
-            await evt.send(evt.image_result(await self._render_pet_info_html(pet_obj, sessions)))
+            await evt.send(evt.image_result(await self._render_pet_info_html(pet_obj)))
 
         @session_waiter(timeout=60, record_history_chains=False)
         async def handler(controller: SessionController, evt: AstrMessageEvent):
@@ -89,7 +89,7 @@ class PetCommands:
                 controller.keep(timeout=60, reset_timeout=True)
                 return
 
-            pet_obj = db_manager.get_all_sessions().get("seerapi", {}).get(PetORM, prompt_map[user_input])
+            pet_obj = sessions.get("seerapi").get(PetORM, prompt_map[user_input])
             if not pet_obj:
                 await evt.send(evt.plain_result(f"❌未找到精灵 ID: {prompt_map[user_input]}"))
                 controller.stop()

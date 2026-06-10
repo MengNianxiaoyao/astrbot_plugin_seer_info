@@ -88,12 +88,12 @@ class SeerInfoPlugin(Star):
             register_local_database("aliases")
 
     async def terminate(self):
-        logger.info("SeerInfo 插件已卸载")
-        cancel_sync_tasks()
+        await cancel_sync_tasks()
         await close_shared_session()
         db_manager.dispose_all()
         if self.config.get("render_mode", "local") == "local":
             await close_renderer()
+        logger.info("SeerInfo 插件已卸载")
 
     @filter.command("精灵", alias={"查询精灵信息", "魂印", "技能"}, ignore_prefix=True)
     async def pet_info(self, event: AstrMessageEvent, arg: str = ""):

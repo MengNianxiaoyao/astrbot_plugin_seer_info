@@ -23,13 +23,7 @@ from ._common import to_data_uri
 TEMPLATE_PATH = "templates/pet_info"
 TEMPLATE_NAME = "template.html.j2"
 
-
-def _get_template_path() -> str:
-    plugin_dir = Path(__file__).parent.parent
-    return str(plugin_dir / TEMPLATE_PATH / TEMPLATE_NAME)
-
-
-PET_TEMPLATE = open(_get_template_path(), "r", encoding="utf-8").read()
+PET_TEMPLATE = (Path(__file__).parent.parent / TEMPLATE_PATH / TEMPLATE_NAME).read_text(encoding="utf-8")
 
 
 async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:

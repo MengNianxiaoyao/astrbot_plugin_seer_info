@@ -2,6 +2,7 @@
 Image fetching dependencies for SeerInfo plugin.
 """
 
+import asyncio
 from typing import Callable
 
 import aiohttp
@@ -9,18 +10,23 @@ import aiohttp
 from astrbot.api import logger
 
 _shared_session: aiohttp.ClientSession | None = None
+_session_lock = asyncio.Lock()
 _image_cache: dict[str, bytes] = {}  # url -> image bytes, LRU-style memory cache
 _MAX_CACHE_SIZE = 128
 
 
-def _get_shared_session() -> aiohttp.ClientSession:
+async def _get_shared_session() -> aiohttp.ClientSession:
     global _shared_session
-    if _shared_session is None or _shared_session.closed:
+    if _shared_session is not None and not _shared_session.closed:
+        return _shared_session
+    async with _session_lock:
+        if _shared_session is not None and not _shared_session.closed:
+            return _shared_session
         _shared_session = aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=30),
             connector=aiohttp.TCPConnector(limit=10, limit_per_host=5),
         )
-    return _shared_session
+        return _shared_session
 
 
 async def close_shared_session():
@@ -48,7 +54,7 @@ class GetImage:
         self.fallback = fallback
 
     async def get_bytes(self, arg: str) -> bytes:
-        session = _get_shared_session()
+        session = await _get_shared_session()
         last_error: Exception | None = None
         for template in self.url_templates:
             url = template.format(arg)
@@ -72,7 +78,7 @@ class GetImage:
         raise error
 
     async def get_image_url(self, arg: str) -> str:
-        session = _get_shared_session()
+        session = await _get_shared_session()
         for template in self.url_templates:
             url = template.format(arg)
             try:

@@ -8,6 +8,7 @@ import asyncio
 import os
 import re
 import sqlite3
+import time
 from collections.abc import Callable, Generator, Iterable
 from pathlib import Path
 from typing import Any, Final, Generic, Protocol, TypeVar, Union
@@ -159,6 +160,7 @@ class DatabaseManager:
             engine.dispose()
             logger.info(f"已释放数据库引擎 '{name}'")
         self._engines.clear()
+        invalidate_relation_cache()
 
 
 db_manager: Final[DatabaseManager] = DatabaseManager()
@@ -174,20 +176,31 @@ def register_database(
 ):
     async def sync_task():
         while True:
+            t0 = time.monotonic()
             await sync_database(name, sync_url, get_fingerprint)
-            logger.info(f"数据库 '{name}' 将在 {sync_interval_minutes} 分钟后再次检查")
-            await asyncio.sleep(sync_interval_minutes * 60)
+            elapsed = time.monotonic() - t0
+            sleep_sec = max(sync_interval_minutes * 60 - elapsed, 0)
+            logger.info(f"数据库 '{name}' 将在 {sleep_sec / 60:.1f} 分钟后再次检查")
+            try:
+                await asyncio.sleep(sleep_sec)
+            except asyncio.CancelledError:
+                return
 
     _sync_tasks[name] = asyncio.create_task(sync_task())
 
 
-def cancel_sync_tasks() -> None:
+async def cancel_sync_tasks() -> None:
     """取消所有同步任务。"""
-    for name, task in _sync_tasks.items():
+    tasks = list(_sync_tasks.values())
+    _sync_tasks.clear()
+    for task in tasks:
         if not task.done():
             task.cancel()
-            logger.info(f"已取消数据库 '{name}' 的同步任务")
-    _sync_tasks.clear()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            logger.info(f"已取消数据库同步任务")
 
 
 def register_local_database(name: str):
@@ -216,20 +229,21 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
             if plugin_db_file.exists() and get_fingerprint:
                 try:
                     remote_fingerprint = await get_fingerprint(session)
-
-                    local_fingerprint = None
-                    if os.path.exists(sha256_path):
-                        local_fingerprint = Path(sha256_path).read_text().strip()
-
-                    if remote_fingerprint and remote_fingerprint == local_fingerprint:
-                        if db_manager.is_database_loaded(name):
-                            logger.info(f"数据库 '{name}' 指纹未变化，跳过更新")
-                        else:
-                            logger.info(f"数据库 '{name}' 指纹未变化，使用本地数据")
-                            db_manager.load_from_file(name, plugin_db_path)
-                        return
                 except Exception as e:
-                    logger.warning(f"指纹检查失败: {e}，将继续下载")
+                    logger.warning(f"指纹检查失败: {e}，跳过本次更新")
+                    return
+
+                local_fingerprint = None
+                if os.path.exists(sha256_path):
+                    local_fingerprint = Path(sha256_path).read_text().strip()
+
+                if remote_fingerprint and remote_fingerprint == local_fingerprint:
+                    if db_manager.is_database_loaded(name):
+                        logger.info(f"数据库 '{name}' 指纹未变化，跳过更新")
+                    else:
+                        logger.info(f"数据库 '{name}' 指纹未变化，使用本地数据")
+                        db_manager.load_from_file(name, plugin_db_path)
+                    return
 
             logger.info(f"开始从 {sync_url} 下载数据库 '{name}'...")
             async with session.get(sync_url, allow_redirects=True) as resp:

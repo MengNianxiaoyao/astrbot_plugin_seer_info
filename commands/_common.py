@@ -1,6 +1,6 @@
 """Common query helpers for command handlers."""
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
 from astrbot.api.event import AstrMessageEvent
 from astrbot.api import logger
@@ -12,7 +12,7 @@ async def multi_select_query(
     arg: str,
     *,
     getter: Callable,
-    prepare_result: Callable,
+    prepare_result: Callable[..., Awaitable],
     label: str,
     result_type: str = "chain",
     error_log_name: str = "",

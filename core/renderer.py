@@ -45,24 +45,23 @@ class LocalRenderer:
         return plugin_dir / "templates"
 
     async def _get_browser(self) -> Browser:
-        """获取共享的浏览器实例（延迟初始化，线程安全）"""
-        async with self._lock:
-            if self._browser is None or not self._browser.is_connected():
-                self._playwright = await async_playwright().start()
-                self._browser = await self._playwright.chromium.launch(
-                    headless=True,
-                    args=[
-                        "--disable-dev-shm-usage",
-                        "--no-sandbox",
-                        "--ignore-gpu-blocklist",
-                        "--enable-gpu-rasterization",
-                        "--enable-zero-copy",
-                        "--disable-features=PaintHolding",
-                        "--disable-ipc-flooding-protection",
-                    ],
-                )
-                logger.info("Playwright 浏览器已启动")
-            return self._browser
+        """获取共享的浏览器实例（延迟初始化）"""
+        if self._browser is None or not self._browser.is_connected():
+            self._playwright = await async_playwright().start()
+            self._browser = await self._playwright.chromium.launch(
+                headless=True,
+                args=[
+                    "--disable-dev-shm-usage",
+                    "--no-sandbox",
+                    "--ignore-gpu-blocklist",
+                    "--enable-gpu-rasterization",
+                    "--enable-zero-copy",
+                    "--disable-features=PaintHolding",
+                    "--disable-ipc-flooding-protection",
+                ],
+            )
+            logger.info("Playwright 浏览器已启动")
+        return self._browser
 
     async def _get_context(self) -> BrowserContext:
         """获取共享的浏览器上下文"""
@@ -113,16 +112,17 @@ class LocalRenderer:
         viewport_width: int,
         timeout: float,
     ) -> bytes:
-        page = await self._get_page()
-        try:
-            return await self._screenshot(page, html_content, viewport_width, timeout)
-        except TargetClosedError:
-            self._page = None
+        async with self._lock:
             page = await self._get_page()
-            return await self._screenshot(page, html_content, viewport_width, timeout)
-        except Exception as e:
-            logger.error(f"渲染图片失败: {e}")
-            raise
+            try:
+                return await self._screenshot(page, html_content, viewport_width, timeout)
+            except TargetClosedError:
+                self._page = None
+                page = await self._get_page()
+                return await self._screenshot(page, html_content, viewport_width, timeout)
+            except Exception as e:
+                logger.error(f"渲染图片失败: {e}")
+                raise
 
     async def _screenshot(
         self,
@@ -170,13 +170,18 @@ class LocalRenderer:
 
 
 _renderer: LocalRenderer | None = None
+_renderer_lock = asyncio.Lock()
 
 
-def get_renderer() -> LocalRenderer:
+async def get_renderer() -> LocalRenderer:
     global _renderer
-    if _renderer is None:
+    if _renderer is not None:
+        return _renderer
+    async with _renderer_lock:
+        if _renderer is not None:
+            return _renderer
         _renderer = LocalRenderer()
-    return _renderer
+        return _renderer
 
 
 async def close_renderer():
@@ -194,7 +199,7 @@ async def render_html_to_bytes(
     viewport_width: int = DEFAULT_VIEWPORT_WIDTH,
     timeout: float = DEFAULT_TIMEOUT,
 ) -> bytes:
-    renderer = get_renderer()
+    renderer = await get_renderer()
     template = renderer._string_template_cache.get(template_string)
     if template is None:
         template = renderer._env.from_string(template_string)
@@ -215,7 +220,7 @@ async def render_template_to_bytes(
     viewport_width: int = DEFAULT_VIEWPORT_WIDTH,
     timeout: float = DEFAULT_TIMEOUT,
 ) -> bytes:
-    renderer = get_renderer()
+    renderer = await get_renderer()
     return await renderer.render_template(
         template_name,
         data,
