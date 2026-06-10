@@ -173,6 +173,10 @@ def register_database(
     sync_interval_minutes: int = 60,
     get_fingerprint: Callable[[aiohttp.ClientSession], Any] | None = None,
 ):
+    old_task = _sync_tasks.pop(name, None)
+    if old_task and not old_task.done():
+        old_task.cancel()
+
     async def sync_task():
         while True:
             t0 = time.monotonic()
