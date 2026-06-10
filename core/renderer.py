@@ -168,6 +168,12 @@ class LocalRenderer:
                 await self._playwright.stop()
                 self._playwright = None
 
+    async def prewarm(self):
+        """预热浏览器，避免首次渲染的冷启动延迟"""
+        async with self._lock:
+            await self._get_page()
+            logger.info("Playwright 浏览器已预热")
+
 
 _renderer: LocalRenderer | None = None
 _renderer_lock = asyncio.Lock()

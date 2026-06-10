@@ -4,6 +4,8 @@ AstrBot Plugin: Seer Info (赛尔号数据查询)
 Ported from IronsBot NoneBot2 plugin to AstrBot framework.
 """
 
+import asyncio
+
 import aiohttp
 
 from astrbot.api.event import filter, AstrMessageEvent
@@ -16,7 +18,7 @@ from .data.db import (
     register_local_database,
     cancel_sync_tasks,
 )
-from .core.renderer import close_renderer
+from .core.renderer import close_renderer, get_renderer
 from .data.image_fetcher import close_shared_session
 from .commands import (
     PetCommands,
@@ -36,6 +38,8 @@ class SeerInfoPlugin(Star):
         self.name = "astrbot_plugin_seer_info"
         self._setup_databases()
         self._init_commands()
+        if self.config.get("render_mode", "local") == "local":
+            asyncio.create_task(self._prewarm_renderer())
 
     def _init_commands(self):
         render_mode = self.config.get("render_mode", "local")
@@ -86,6 +90,14 @@ class SeerInfoPlugin(Star):
             )
         else:
             register_local_database("aliases")
+
+    async def _prewarm_renderer(self):
+        """后台预热 Playwright 浏览器"""
+        try:
+            renderer = await get_renderer()
+            await renderer.prewarm()
+        except Exception as e:
+            logger.warning(f"Playwright 浏览器预热失败: {e}")
 
     async def terminate(self):
         await cancel_sync_tasks()
