@@ -3,7 +3,7 @@ Image fetching dependencies for SeerInfo plugin.
 """
 
 import asyncio
-from typing import Callable
+from collections.abc import Callable
 
 import aiohttp
 

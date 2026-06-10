@@ -5,13 +5,12 @@ Simplified from IronsBot's db_sync system for AstrBot.
 """
 
 import asyncio
-import os
 import re
 import sqlite3
 import time
 from collections.abc import Callable, Generator, Iterable
 from pathlib import Path
-from typing import Any, Final, Generic, Protocol, TypeVar, Union
+from typing import Any, Final, Generic, Protocol, TypeVar
 
 import aiohttp
 from pypinyin import lazy_pinyin
@@ -209,7 +208,7 @@ def register_local_database(name: str):
     """
     file_path = get_plugin_db_path(name)
     
-    if not os.path.exists(file_path):
+    if not Path(file_path).exists():
         logger.warning(f"本地文件 '{file_path}' 不存在，跳过注册 {name}")
         return
 
@@ -234,7 +233,7 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
                     return
 
                 local_fingerprint = None
-                if os.path.exists(sha256_path):
+                if Path(sha256_path).exists():
                     local_fingerprint = Path(sha256_path).read_text().strip()
 
                 if remote_fingerprint and remote_fingerprint == local_fingerprint:
@@ -304,7 +303,7 @@ class IdResolver(Generic[_T_Model]):
         self.model = model
         self.db_name = db_name
 
-    def __call__(self, sessions: dict, arg: str) -> Union[tuple[_T_Model], tuple]:
+    def __call__(self, sessions: dict, arg: str) -> tuple[_T_Model] | tuple:
         if not arg.isdigit():
             return ()
         session = sessions.get(self.db_name)

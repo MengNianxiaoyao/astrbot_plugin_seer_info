@@ -39,15 +39,17 @@ async def build_type_matchup_render_data(type_combo: TypeCombinationORM) -> dict
             all_combo_ids.setdefault(combo.id, None)
 
         id_list = list(all_combo_ids)
-        icon_bytes_list = await asyncio.gather(
-            *(ElementTypeImageGetter.get_bytes(str(cid)) for cid in id_list),
-            return_exceptions=True
-        )
-
         icon_map: dict[int, str] = {}
-        for cid, data in zip(id_list, icon_bytes_list):
-            if not isinstance(data, Exception):
-                icon_map[cid] = to_data_uri(data)
+        async with asyncio.TaskGroup() as tg:
+            tasks = {
+                cid: tg.create_task(ElementTypeImageGetter.get_bytes(str(cid)))
+                for cid in id_list
+            }
+        for cid, task in tasks.items():
+            try:
+                icon_map[cid] = to_data_uri(task.result())
+            except Exception:
+                pass
 
         type_name = getattr(type_combo, 'name', '未知')
         type_icon = icon_map.get(type_combo.id, '')
