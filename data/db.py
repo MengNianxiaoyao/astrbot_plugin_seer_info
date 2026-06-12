@@ -173,52 +173,40 @@ def register_database(
     sync_interval_minutes: int = 60,
     get_fingerprint: Callable[[aiohttp.ClientSession], Any] | None = None,
 ):
-    old_task = _sync_tasks.pop(name, None)
-    if old_task and not old_task.done():
-        old_task.cancel()
-        logger.info(f"取消旧的同步任务: {name}")
-
     async def sync_task():
-        while True:
-            t0 = time.monotonic()
-            await sync_database(name, sync_url, get_fingerprint)
-            elapsed = time.monotonic() - t0
-            sleep_sec = max(sync_interval_minutes * 60 - elapsed, 0)
-            logger.info(f"数据库 '{name}' 将在 {sleep_sec / 60:.1f} 分钟后再次检查")
-            try:
+        try:
+            while True:
+                t0 = time.monotonic()
+                await sync_database(name, sync_url, get_fingerprint)
+                elapsed = time.monotonic() - t0
+                sleep_sec = max(sync_interval_minutes * 60 - elapsed, 0)
+                logger.info(f"数据库 '{name}' 将在 {sleep_sec / 60:.1f} 分钟后再次检查")
                 await asyncio.sleep(sleep_sec)
-            except asyncio.CancelledError:
-                return
+        except asyncio.CancelledError:
+            raise
 
     _sync_tasks[name] = asyncio.create_task(sync_task())
 
 
 async def cancel_sync_tasks() -> None:
-    """取消所有同步任务。"""
+    """取消所有同步任务并等待完成。"""
     tasks = list(_sync_tasks.values())
     _sync_tasks.clear()
     if not tasks:
         return
-    for task in tasks:
-        if not task.done():
-            task.cancel()
-    for task in tasks:
-        try:
-            await asyncio.wait_for(task, timeout=5.0)
-        except (asyncio.CancelledError, asyncio.TimeoutError):
-            pass
-    logger.info(f"已取消 {len(tasks)} 个数据库同步任务")
+    pending = [t for t in tasks if not t.done()]
+    for task in pending:
+        task.cancel()
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
+    cancelled = sum(1 for t in tasks if t.cancelled())
+    logger.info(f"已取消 {cancelled}/{len(tasks)} 个数据库同步任务")
 
 
 def register_local_database(name: str):
     """注册本地数据库文件，使用默认路径：
     data/plugin_data/{plugin_name}/{name}.sqlite
     """
-    old_task = _sync_tasks.pop(name, None)
-    if old_task and not old_task.done():
-        old_task.cancel()
-        logger.info(f"取消旧的同步任务: {name} (切换为本地数据库)")
-
     file_path = get_plugin_db_path(name)
     
     if not Path(file_path).exists():
@@ -278,6 +266,8 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
 
             db_manager.load_from_file(name, plugin_db_path)
 
+    except asyncio.CancelledError:
+        raise
     except Exception as e:
         logger.error(f"数据库 '{name}' 同步失败: {e}")
 
