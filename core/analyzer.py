@@ -5,6 +5,7 @@
 
 import html
 import re
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -108,7 +109,8 @@ def _parse_desc_line(raw: str) -> DescLine:
 class AnalyzeDescParser:
     """赛尔号Analyze描述标签解析器（带缓存）"""
 
-    _cache: dict[str, "AnalyzeDescParser"] = {}
+    _cache: OrderedDict[str, "AnalyzeDescParser"] = OrderedDict()
+    _MAX_CACHE_SIZE = 512
 
     def __init__(self, desc: str) -> None:
         self.desc = desc
@@ -118,11 +120,12 @@ class AnalyzeDescParser:
     def from_cache(cls, desc: str) -> "AnalyzeDescParser":
         cached = cls._cache.get(desc)
         if cached is not None:
+            cls._cache.move_to_end(desc)
             return cached
         instance = cls(desc)
         cls._cache[desc] = instance
-        if len(cls._cache) > 512:
-            cls._cache.clear()
+        if len(cls._cache) > cls._MAX_CACHE_SIZE:
+            cls._cache.popitem(last=False)
         return instance
 
     def lines_by_sprite(self, sprite: str) -> list[DescLine]:

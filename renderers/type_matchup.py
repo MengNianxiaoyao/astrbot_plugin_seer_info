@@ -11,8 +11,7 @@ from astrbot.api import logger
 from ..data.image_fetcher import ElementTypeImageGetter
 from ..core.type_calc import calc_attack_table, calc_defense_table
 from ..data.db import db_manager
-from ..core.renderer import render_html_to_bytes
-from ..data.cache import save_bytes_to_temp_file
+from ..core.renderer import render_to_image
 from ._common import to_data_uri
 
 TEMPLATE_PATH = "templates/type_matchup"
@@ -98,31 +97,26 @@ async def build_type_matchup_render_data(type_combo: TypeCombinationORM) -> dict
 
 async def render_type_matchup(
     type_combo: TypeCombinationORM,
-    is_local: bool = True,
     html_render=None,
+    image_format: str = "jpeg",
+    jpeg_quality: int = 85,
 ) -> str:
-    """Render type matchup chart to PNG image.
+    """Render type matchup chart to image.
 
     Args:
         type_combo: The TypeCombinationORM object
-        is_local: Whether to use local Playwright rendering
-        html_render: AstrBot's html_render function (required for remote mode)
+        html_render: AstrBot's html_render function (None for local rendering)
+        image_format: Image output format (jpeg or png)
+        jpeg_quality: JPEG quality (1-100)
 
     Returns:
         Path to the rendered image file
     """
     render_data = await build_type_matchup_render_data(type_combo)
-
-    if is_local:
-        image_bytes = await render_html_to_bytes(
-            TYPE_MATCHUP_TEMPLATE,
-            render_data,
-            viewport_width=1200,
-        )
-        return save_bytes_to_temp_file(image_bytes)
-    else:
-        return await html_render(
-            TYPE_MATCHUP_TEMPLATE,
-            render_data,
-            options={"scale": "device", "type": "png"},
-        )
+    return await render_to_image(
+        TYPE_MATCHUP_TEMPLATE,
+        render_data,
+        html_render=html_render,
+        image_format=image_format,
+        jpeg_quality=jpeg_quality,
+    )

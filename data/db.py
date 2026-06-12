@@ -203,7 +203,7 @@ async def cancel_sync_tasks() -> None:
                 await task
             except asyncio.CancelledError:
                 pass
-            logger.info(f"已取消数据库同步任务")
+    logger.info(f"已取消数据库同步任务")
 
 
 def register_local_database(name: str):

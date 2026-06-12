@@ -39,5 +39,18 @@
     "options": ["local", "remote"],
     "default": "local",
     "hint": "默认本地渲染。local: 本地渲染  remote: AstrBot渲染服务"
+  },
+  "image_format": {
+    "description": "本地渲染图片输出格式",
+    "type": "string",
+    "options": ["png", "jpeg"],
+    "default": "jpeg",
+    "hint": "jpeg体积小速度快，png无损但体积大"
+  },
+  "jpeg_quality": {
+    "description": "本地渲染JPEG输出质量",
+    "type": "int",
+    "default": 85,
+    "hint": "1-100，数值越高质量越好但文件越大"
   }
 }

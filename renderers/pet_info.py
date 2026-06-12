@@ -7,16 +7,20 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
-from seerapi_models import PetORM
+from seerapi_models import PetORM, MintmarkORM
+from seerapi_models.mintmark import PetMintmarkLink, SkillMintmarkLink
+from sqlalchemy.orm import object_session
+from sqlmodel import col, select
 
 from astrbot.api import logger
 
 from ..data.image_fetcher import (
     ElementTypeImageGetter,
+    MintmarkBodyImageGetter,
     PetBodyImageGetter,
     PetHeadImageGetter,
 )
-from ..core.analyzer import AnalyzeDescParser, _ANALYZE_DESC_STYLES
+from ..core.analyzer import parse_analyze_desc
 from ._common import to_data_uri
 
 
@@ -24,6 +28,92 @@ TEMPLATE_PATH = "templates/pet_info"
 TEMPLATE_NAME = "template.html.j2"
 
 PET_TEMPLATE = (Path(__file__).parent.parent / TEMPLATE_PATH / TEMPLATE_NAME).read_text(encoding="utf-8")
+
+
+def _extract_skill(skill_in_pet) -> list[dict[str, Any]]:
+    """提取单个技能链接的技能数据，支持好友技能"""
+    skill = skill_in_pet.skill
+    if not skill or getattr(skill, 'id', 0) == 19002:
+        return []
+
+    skill_type = getattr(skill, 'type', None)
+    skill_category = getattr(skill, 'category', None)
+    skill_hide_effect = getattr(skill, 'hide_effect', None)
+    skill_activation_item = getattr(skill_in_pet, 'skill_activation_item', None)
+
+    effects = [
+        {
+            'id': getattr(e, 'effect_id', 0),
+            'info': parse_analyze_desc(getattr(e, 'analyze_info', '') or ''),
+        }
+        for e in getattr(skill, 'skill_effect', [])
+    ]
+
+    hide_effect_desc = getattr(skill_hide_effect, 'description', None) if skill_hide_effect else None
+    activation_item = getattr(skill_activation_item, 'name', None) if skill_activation_item else None
+
+    result = {
+        'id': skill.id,
+        'name': skill.name,
+        'type_id': skill_type.id if skill_type else 0,
+        'type_name': skill_type.name if skill_type else '',
+        'category_id': skill_category.id if skill_category else 0,
+        'category_name': skill_category.name if skill_category else '',
+        'power': skill.power or 0,
+        'max_pp': skill.max_pp or 0,
+        'accuracy': '必中' if skill.must_hit else skill.accuracy,
+        'crit_rate': skill.crit_rate,
+        'priority': skill.priority or 0,
+        'must_hit': skill.must_hit,
+        'info': skill.info,
+        'learning_level': skill_in_pet.learning_level,
+        'is_special': skill_in_pet.is_special,
+        'is_advanced': skill_in_pet.is_advanced,
+        'is_fifth': skill_in_pet.is_fifth,
+        'effects': effects,
+        'activation_item': activation_item,
+        'friend_bonus': False,
+        'hide_effect_desc': hide_effect_desc,
+    }
+
+    if hasattr(skill, 'friend_skill_effect') and len(skill.friend_skill_effect) > 0:
+        friend_skill = {
+            **result,
+            'friend_bonus': True,
+            'is_special': True,
+            'effects': [
+                {'id': getattr(e, 'effect_id', 0), 'info': getattr(e, 'info', '')}
+                for e in skill.friend_skill_effect
+            ],
+        }
+        return [result, friend_skill]
+
+    return [result]
+
+
+def _extract_soulmark(soulmarks: list, pet: PetORM) -> list[dict[str, Any]]:
+    """提取魂印数据"""
+    results = []
+    for sm in soulmarks:
+        sm_desc = getattr(sm, 'analyze_desc', '') or getattr(sm, 'desc', '')
+        results.append({
+            'desc': parse_analyze_desc(sm_desc or ''),
+            'intensified': getattr(sm, 'intensified', False),
+            'is_adv': getattr(sm, 'is_adv', False),
+            'pve_effective': getattr(sm, 'pve_effective', None),
+            'tags': [t.name for t in getattr(sm, 'tag', []) or []],
+            'glossaries': [],
+        })
+
+    pet_glossary_entries = list(getattr(pet, 'glossary_entry', []) or [])
+    for i, sm_data in enumerate(reversed(results)):
+        for glossary in pet_glossary_entries:
+            g_name = getattr(glossary, 'name', '')
+            g_desc = getattr(glossary, 'desc', '')
+            if g_name and (i == 0 or g_name in sm_data['desc']):
+                sm_data['glossaries'].append({'name': g_name, 'desc': g_desc})
+
+    return results
 
 
 async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
@@ -43,7 +133,6 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
         gender_id = 0
 
     pet_gender_icon = ''
-    gender_label = '无性别'
     try:
         plugin_dir = Path(__file__).parent.parent
         icon_path = plugin_dir / "templates" / "pet_info" / "images" / f"{gender_id}.png"
@@ -52,84 +141,106 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
     except Exception as e:
         logger.error(f"获取性别图标失败: {e}")
 
-    pet_type_id = int(getattr(pet.type, 'id', 0)) if hasattr(pet, 'type') and getattr(pet.type, 'id', None) is not None else 0
-    pet_type_name = getattr(pet.type, 'name', '') if hasattr(pet, 'type') else ''
-
-    pet_head_img = ''
-    pet_body_img = ''
-    type_icons: dict[int | str, str] = {}
+    pet_type_id = pet.type.id if hasattr(pet, 'type') and getattr(pet.type, 'id', None) is not None else 0
+    pet_type_name = pet.type.name if hasattr(pet, 'type') else ''
 
     all_skills = []
     if hasattr(pet, 'skill_links') and pet.skill_links:
         for sl in pet.skill_links:
-            skill = getattr(sl, 'skill', None)
-            if skill and getattr(skill, 'id', 0) != 19002:
-                skill_type = getattr(skill, 'type', None)
-                skill_category = getattr(skill, 'category', None)
-                skill_hide_effect = getattr(skill, 'hide_effect', None)
-                skill_activation_item = getattr(sl, 'skill_activation_item', None)
+            all_skills.extend(_extract_skill(sl))
 
-                effects = []
-                if hasattr(skill, 'skill_effect'):
-                    for e in getattr(skill, 'skill_effect', []):
-                        effect_info = getattr(e, 'analyze_info', None) or getattr(e, 'info', '')
-                        effects.append({
-                            'id': getattr(e, 'effect_id', 0),
-                            'info': AnalyzeDescParser.from_cache(effect_info).to_html(_ANALYZE_DESC_STYLES) if effect_info else '',
-                        })
+    soulmarks = _extract_soulmark(getattr(pet, 'soulmark', []) or [], pet)
+    if pet_id == 2500:
+        soulmarks.append({
+            'desc': '登场首回合所有攻击先制+1同时增加20%暴击率',
+            'intensified': True,
+            'is_adv': False,
+            'pve_effective': None,
+            'tags': [],
+            'glossaries': [],
+        })
 
-                hide_effect_desc = getattr(skill_hide_effect, 'description', None) if skill_hide_effect else None
-                activation_item = getattr(skill_activation_item, 'name', None) if skill_activation_item else None
+    fifth_skills = [s for s in all_skills if s.get('is_fifth')][::-1]
+    advanced_skills = [s for s in all_skills if s.get('is_advanced')][::-1]
+    special_skills = [s for s in all_skills if s.get('is_special')][::-1]
+    level_skills = sorted(
+        [s for s in all_skills if not s.get('is_fifth') and not s.get('is_advanced') and not s.get('is_special')],
+        key=lambda x: x.get('learning_level') or 0,
+        reverse=True,
+    )
 
-                all_skills.append({
-                    'id': getattr(skill, 'id', 0),
-                    'name': getattr(skill, 'name', ''),
-                    'type_id': int(getattr(skill_type, 'id', 0)) if skill_type else 0,
-                    'type_name': getattr(skill_type, 'name', '') if skill_type else '',
-                    'category_id': getattr(skill_category, 'id', 0) if skill_category else 0,
-                    'category_name': getattr(skill_category, 'name', '') if skill_category else '',
-                    'power': getattr(skill, 'power', 0) or 0,
-                    'max_pp': getattr(skill, 'max_pp', 0) or 0,
-                    'accuracy': '必中' if getattr(skill, 'must_hit', False) else getattr(skill, 'accuracy', ''),
-                    'crit_rate': getattr(skill, 'crit_rate', None),
-                    'priority': getattr(skill, 'priority', 0) or 0,
-                    'must_hit': getattr(skill, 'must_hit', False),
-                    'info': getattr(skill, 'info', None),
-                    'learning_level': getattr(sl, 'learning_level', None),
-                    'is_special': getattr(sl, 'is_special', False),
-                    'is_advanced': getattr(sl, 'is_advanced', False),
-                    'is_fifth': getattr(sl, 'is_fifth', False),
-                    'effects': effects,
-                    'activation_item': activation_item,
-                    'friend_bonus': False,
-                    'hide_effect_desc': hide_effect_desc,
-                })
+    skill_ids = [sl.skill_id for sl in pet.skill_links] if pet.skill_links else []
+    pet_skill_names = {s['name'] for s in all_skills}
+    type_ids = list({skill['type_id'] for skill in all_skills if skill.get('type_id')} | {pet_type_id})
+
+    session = object_session(pet)
+    mintmarks = []
+    if session:
+        try:
+            stmt = (
+                select(MintmarkORM)
+                .outerjoin(SkillMintmarkLink, col(SkillMintmarkLink.mintmark_id) == col(MintmarkORM.id))
+                .outerjoin(PetMintmarkLink, col(PetMintmarkLink.mintmark_id) == col(MintmarkORM.id))
+                .where(
+                    col(SkillMintmarkLink.skill_id).in_(skill_ids)
+                    | (col(PetMintmarkLink.pet_id) == pet_id)
+                )
+                .where(
+                    col(PetMintmarkLink.pet_id).is_(None)
+                    | (col(PetMintmarkLink.pet_id) == pet_id)
+                )
+                .distinct()
+            )
+            mintmarks = session.execute(stmt).scalars().all()
+        except Exception as e:
+            logger.error(f"查询刻印数据失败: {e}")
 
     try:
         resource_id = getattr(pet, 'resource_id', None)
-        if resource_id:
-            head_bytes, body_bytes = await asyncio.gather(
-                PetHeadImageGetter.get_bytes(str(resource_id)),
-                PetBodyImageGetter.get_bytes(str(resource_id)),
-            )
-            pet_head_img = to_data_uri(head_bytes)
-            pet_body_img = to_data_uri(body_bytes)
 
-        skill_type_ids = [skill['type_id'] for skill in all_skills if skill.get('type_id')]
-        if pet_type_id and pet_type_id not in skill_type_ids:
-            skill_type_ids.append(pet_type_id)
+        pet_head_task = PetHeadImageGetter.get_bytes(str(resource_id)) if resource_id else asyncio.sleep(0, result=b'')
+        pet_body_task = PetBodyImageGetter.get_bytes(str(resource_id)) if resource_id else asyncio.sleep(0, result=b'')
 
-        unique_type_ids = list(dict.fromkeys(skill_type_ids))
+        gather_results = await asyncio.gather(
+            pet_head_task,
+            pet_body_task,
+            *(ElementTypeImageGetter.get_bytes(str(tid)) for tid in type_ids),
+            ElementTypeImageGetter.get_bytes("prop"),
+            *(MintmarkBodyImageGetter.get_bytes(str(mm.id)) for mm in mintmarks),
+            return_exceptions=True,
+        )
 
-        type_icon_futures = [ElementTypeImageGetter.get_bytes(str(tid)) for tid in unique_type_ids]
-        type_icon_futures.append(ElementTypeImageGetter.get_bytes("prop"))
-        type_bytes_list = await asyncio.gather(*type_icon_futures)
+        pet_head_bytes, pet_body_bytes = gather_results[0], gather_results[1]
+        type_icon_count = len(type_ids) + 1
+        type_icon_results = gather_results[2:2 + type_icon_count]
+        mm_icon_results = gather_results[2 + type_icon_count:]
 
-        for i, tid in enumerate(unique_type_ids):
-            type_icons[str(tid)] = to_data_uri(type_bytes_list[i])
-        type_icons["prop"] = to_data_uri(type_bytes_list[-1])
+        pet_head_img = '' if isinstance(pet_head_bytes, Exception) else to_data_uri(pet_head_bytes)
+        pet_body_img = '' if isinstance(pet_body_bytes, Exception) else to_data_uri(pet_body_bytes)
+
+        type_icons = {}
+        for i, tid in enumerate(type_ids):
+            if not isinstance(type_icon_results[i], Exception):
+                type_icons[str(tid)] = to_data_uri(type_icon_results[i])
+        if not isinstance(type_icon_results[-1], Exception):
+            type_icons["prop"] = to_data_uri(type_icon_results[-1])
+
+        skill_marks = []
+        for mm, icon_result in zip(mintmarks, mm_icon_results):
+            icon_uri = '' if isinstance(icon_result, Exception) else to_data_uri(icon_result)
+            skill_marks.append({
+                'id': mm.id,
+                'name': mm.name,
+                'desc': getattr(mm, 'desc', ''),
+                'icon': icon_uri,
+                'skills': list(dict.fromkeys(s.name for s in mm.skill if s.name in pet_skill_names)),
+            })
     except Exception as e:
         logger.error(f"获取精灵图标失败: {e}")
+        pet_head_img = ''
+        pet_body_img = ''
+        type_icons = {}
+        skill_marks = []
 
     stats = {}
     if hasattr(pet, 'base_stats') and pet.base_stats:
@@ -147,40 +258,9 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
                 adv_model = adv_model.round()
             advance_stats = adv_model.model_dump()
 
-    soulmarks = []
-    if hasattr(pet, 'soulmark') and pet.soulmark:
-        for sm in pet.soulmark[:2]:
-            sm_desc = getattr(sm, 'analyze_desc', '') or getattr(sm, 'desc', '')
-            parser = AnalyzeDescParser.from_cache(sm_desc or '')
-            soulmarks.append({
-                'desc': parser.to_html(_ANALYZE_DESC_STYLES),
-                'intensified': getattr(sm, 'intensified', False),
-                'is_adv': getattr(sm, 'is_adv', False),
-                'pve_effective': getattr(sm, 'pve_effective', None),
-                'tags': [t.name for t in getattr(sm, 'tag', []) or []],
-                'glossaries': [],
-            })
-
-        pet_glossary_entries = list(getattr(pet, 'glossary_entry', []) or [])
-        for i, sm_data in enumerate(reversed(soulmarks)):
-            for glossary in pet_glossary_entries:
-                g_name = getattr(glossary, 'name', '')
-                g_desc = getattr(glossary, 'desc', '')
-                if g_name and (i == 0 or g_name in sm_data['desc']):
-                    sm_data['glossaries'].append({'name': g_name, 'desc': g_desc})
-
-    fifth_skills = [s for s in all_skills if s.get('is_fifth')]
-    level_skills = sorted([s for s in all_skills if not s.get('is_fifth') and not s.get('is_advanced') and not s.get('is_special')],
-                          key=lambda x: x.get('learning_level') or 0, reverse=True)
-    advanced_skills = [s for s in all_skills if s.get('is_advanced')]
-    special_skills = [s for s in all_skills if s.get('is_special')]
-
-    skill_marks = []
-
     render_data = {
         'pet_name': pet_name,
         'pet_id': pet_id,
-        'pet_gender': gender_label,
         'pet_gender_id': gender_id,
         'pet_gender_icon': pet_gender_icon,
         'pet_type_id': str(pet_type_id) if pet_type_id else '0',

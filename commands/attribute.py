@@ -11,9 +11,10 @@ from ..renderers.type_matchup import render_type_matchup
 class AttributeCommands:
     """Handler for attribute type matchup commands."""
 
-    def __init__(self, is_local: bool = True, html_render=None):
-        self._is_local = is_local
+    def __init__(self, html_render=None, image_format: str = "jpeg", jpeg_quality: int = 85):
         self._html_render = html_render
+        self._image_format = image_format
+        self._jpeg_quality = jpeg_quality
 
     async def type_matchup(self, event: AstrMessageEvent, arg: str = ""):
         """查询属性克制表"""
@@ -39,8 +40,9 @@ class AttributeCommands:
         async def prepare_result(type_combo):
             return await render_type_matchup(
                 type_combo,
-                is_local=self._is_local,
                 html_render=self._html_render,
+                image_format=self._image_format,
+                jpeg_quality=self._jpeg_quality,
             )
 
         if len(types) == 1:

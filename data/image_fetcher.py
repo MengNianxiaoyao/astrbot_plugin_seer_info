@@ -3,6 +3,7 @@ Image fetching dependencies for SeerInfo plugin.
 """
 
 import asyncio
+from collections import OrderedDict
 from collections.abc import Callable
 
 import aiohttp
@@ -11,7 +12,7 @@ from astrbot.api import logger
 
 _shared_session: aiohttp.ClientSession | None = None
 _session_lock = asyncio.Lock()
-_image_cache: dict[str, bytes] = {}  # url -> image bytes, LRU-style memory cache
+_image_cache: OrderedDict[str, bytes] = OrderedDict()  # url -> image bytes, LRU cache
 _MAX_CACHE_SIZE = 128
 
 
@@ -60,13 +61,15 @@ class GetImage:
             url = template.format(arg)
             cached = _image_cache.get(url)
             if cached is not None:
+                _image_cache.move_to_end(url)
                 return cached
             try:
                 async with session.get(url) as response:
                     response.raise_for_status()
                     data = await response.read()
-                    if len(_image_cache) < _MAX_CACHE_SIZE:
-                        _image_cache[url] = data
+                    _image_cache[url] = data
+                    if len(_image_cache) > _MAX_CACHE_SIZE:
+                        _image_cache.popitem(last=False)
                     return data
             except Exception as e:
                 last_error = e

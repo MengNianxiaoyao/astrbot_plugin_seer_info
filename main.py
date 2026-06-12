@@ -5,6 +5,7 @@ Ported from IronsBot NoneBot2 plugin to AstrBot framework.
 """
 
 import asyncio
+from functools import partial
 
 import aiohttp
 
@@ -36,60 +37,45 @@ class SeerInfoPlugin(Star):
         super().__init__(context)
         self.config = config
         self.name = "astrbot_plugin_seer_info"
-        self._setup_databases()
+        self._is_local_render = self.config.get("render_mode", "local") == "local"
+        self._load_config()
         self._init_commands()
-        if self.config.get("render_mode", "local") == "local":
+
+    def _load_config(self):
+        """从插件配置加载并初始化数据库"""
+        self._setup_databases()
+        if self._is_local_render:
             asyncio.create_task(self._prewarm_renderer())
 
+    def _setup_databases(self):
+        async def get_fingerprint(url: str, session: aiohttp.ClientSession) -> str:
+            async with session.get(url) as resp:
+                resp.raise_for_status()
+                return (await resp.read()).decode().strip()
+
+        def _register(name: str, sync_url_key: str, fp_url_key: str, interval_key: str):
+            sync_url = self.config.get(sync_url_key, "")
+            if sync_url:
+                fp_url = self.config.get(fp_url_key, "")
+                fp = partial(get_fingerprint, fp_url) if fp_url else None
+                register_database(name, sync_url=sync_url, sync_interval_minutes=self.config.get(interval_key, 60), get_fingerprint=fp)
+            else:
+                register_local_database(name)
+
+        _register("seerapi", "seerapi_sync_url", "seerapi_fingerprint_url", "seerapi_sync_interval_minutes")
+        _register("aliases", "alias_sync_url", "alias_fingerprint_url", "alias_sync_interval_minutes")
+
     def _init_commands(self):
-        render_mode = self.config.get("render_mode", "local")
-        is_local = render_mode == "local"
-        self._pet_cmds = PetCommands(is_local=is_local, html_render=self.html_render)
-        self._attr_cmds = AttributeCommands(is_local=is_local, html_render=self.html_render)
+        html_render = None if self._is_local_render else self.html_render
+        image_format = self.config.get("image_format", "jpeg")
+        jpeg_quality = self.config.get("jpeg_quality", 85)
+        self._pet_cmds = PetCommands(html_render=html_render, image_format=image_format, jpeg_quality=jpeg_quality)
+        self._attr_cmds = AttributeCommands(html_render=html_render, image_format=image_format, jpeg_quality=jpeg_quality)
         self._effect_cmds = EffectCommands()
         self._mintmark_cmds = MintmarkCommands()
         self._equip_cmds = EquipCommands()
         self._title_cmds = TitleCommands()
         self._misc_cmds = MiscCommands()
-
-    def _setup_databases(self):
-        seerapi_sync_url = self.config.get("seerapi_sync_url", "")
-        seerapi_fingerprint_url = self.config.get("seerapi_fingerprint_url", "")
-        seerapi_sync_interval = self.config.get("seerapi_sync_interval_minutes", 60)
-
-        async def get_seerapi_fingerprint(session: aiohttp.ClientSession) -> str:
-            async with session.get(seerapi_fingerprint_url) as resp:
-                resp.raise_for_status()
-                return (await resp.read()).decode().strip()
-
-        if seerapi_sync_url:
-            register_database(
-                "seerapi",
-                sync_url=seerapi_sync_url,
-                sync_interval_minutes=seerapi_sync_interval,
-                get_fingerprint=get_seerapi_fingerprint if seerapi_fingerprint_url else None,
-            )
-        else:
-            register_local_database("seerapi")
-
-        alias_sync_url = self.config.get("alias_sync_url", "")
-        alias_fingerprint_url = self.config.get("alias_fingerprint_url", "")
-        alias_sync_interval = self.config.get("alias_sync_interval_minutes", 60)
-
-        async def get_alias_fingerprint(session: aiohttp.ClientSession) -> str:
-            async with session.get(alias_fingerprint_url) as resp:
-                resp.raise_for_status()
-                return (await resp.read()).decode().strip()
-
-        if alias_sync_url:
-            register_database(
-                "aliases",
-                sync_url=alias_sync_url,
-                sync_interval_minutes=alias_sync_interval,
-                get_fingerprint=get_alias_fingerprint if alias_fingerprint_url else None,
-            )
-        else:
-            register_local_database("aliases")
 
     async def _prewarm_renderer(self):
         """后台预热 Playwright 浏览器"""
@@ -103,7 +89,7 @@ class SeerInfoPlugin(Star):
         await cancel_sync_tasks()
         await close_shared_session()
         db_manager.dispose_all()
-        if self.config.get("render_mode", "local") == "local":
+        if self._is_local_render:
             await close_renderer()
         logger.info("SeerInfo 插件已卸载")
 

@@ -13,7 +13,7 @@ from ..data.db import (
 )
 from ..data.image_fetcher import PetBodyImageGetter
 from ..renderers.pet_info import render_pet_info_data, PET_TEMPLATE
-from ..core.renderer import render_html_to_bytes
+from ..core.renderer import render_to_image
 from ..data.cache import save_bytes_to_temp_file
 from ._common import multi_select_query
 
@@ -21,26 +21,20 @@ from ._common import multi_select_query
 class PetCommands:
     """Handler for pet-related commands."""
 
-    def __init__(self, is_local: bool = True, html_render=None):
-        self._is_local = is_local
+    def __init__(self, html_render=None, image_format: str = "jpeg", jpeg_quality: int = 85):
         self._html_render = html_render
+        self._image_format = image_format
+        self._jpeg_quality = jpeg_quality
 
     async def _render_pet_info_html(self, pet) -> str:
         render_data = await render_pet_info_data(pet)
-
-        if self._is_local:
-            image_bytes = await render_html_to_bytes(
-                PET_TEMPLATE,
-                render_data,
-                viewport_width=1200,
-            )
-            return save_bytes_to_temp_file(image_bytes)
-        else:
-            return await self._html_render(
-                PET_TEMPLATE,
-                render_data,
-                options={"scale": "device", "type": "png"},
-            )
+        return await render_to_image(
+            PET_TEMPLATE,
+            render_data,
+            html_render=self._html_render,
+            image_format=self._image_format,
+            jpeg_quality=self._jpeg_quality,
+        )
 
     async def pet_info(self, event: AstrMessageEvent, arg: str = ""):
         """查询精灵基础信息"""
