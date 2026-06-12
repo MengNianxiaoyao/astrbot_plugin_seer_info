@@ -176,6 +176,7 @@ def register_database(
     old_task = _sync_tasks.pop(name, None)
     if old_task and not old_task.done():
         old_task.cancel()
+        logger.info(f"取消旧的同步任务: {name}")
 
     async def sync_task():
         while True:
@@ -196,20 +197,28 @@ async def cancel_sync_tasks() -> None:
     """取消所有同步任务。"""
     tasks = list(_sync_tasks.values())
     _sync_tasks.clear()
+    if not tasks:
+        return
     for task in tasks:
         if not task.done():
             task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-    logger.info(f"已取消数据库同步任务")
+    for task in tasks:
+        try:
+            await asyncio.wait_for(task, timeout=5.0)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            pass
+    logger.info(f"已取消 {len(tasks)} 个数据库同步任务")
 
 
 def register_local_database(name: str):
     """注册本地数据库文件，使用默认路径：
     data/plugin_data/{plugin_name}/{name}.sqlite
     """
+    old_task = _sync_tasks.pop(name, None)
+    if old_task and not old_task.done():
+        old_task.cancel()
+        logger.info(f"取消旧的同步任务: {name} (切换为本地数据库)")
+
     file_path = get_plugin_db_path(name)
     
     if not Path(file_path).exists():
