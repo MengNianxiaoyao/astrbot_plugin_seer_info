@@ -42,7 +42,6 @@ class MiscCommands:
     async def help_cmd(self, event: AstrMessageEvent):
         """显示帮助信息"""
         help_text = """🤖 赛尔号数据查询插件
-
 命令：
   🐱精灵相关：
     精灵/查询精灵信息/魂印/技能 <名称/ID> — 查询精灵基础信息
@@ -65,6 +64,3 @@ class MiscCommands:
     下周预告 — 获取下周预告图
     开服查询 — 查询服务器是否已开服"""
         yield event.plain_result(help_text)
-
-
-__all__ = ["MiscCommands"]

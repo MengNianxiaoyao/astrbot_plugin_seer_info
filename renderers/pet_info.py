@@ -21,7 +21,7 @@ from ..data.image_fetcher import (
     PetHeadImageGetter,
 )
 from ..core.analyzer import parse_analyze_desc
-from ._common import to_data_uri
+from ..data.cache import to_data_uri
 
 
 TEMPLATE_PATH = "templates/pet_info"
@@ -284,6 +284,3 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
 async def render_pet_info_data(pet: PetORM) -> dict[str, Any]:
     """Build render data dictionary for pet info card (async)."""
     return await _build_pet_render_data(pet)
-
-
-__all__ = ["render_pet_info_data", "PET_TEMPLATE"]

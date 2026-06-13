@@ -38,7 +38,7 @@ class EquipCommands:
         part_type_id = getattr(getattr(equip, 'part_type', None), 'id', None)
         part_type_name = EQUIP_PART_TYPE_MAP.get(part_type_id, "未知") if part_type_id is not None else "未知"
 
-        info = f"👚【{equip.name}】（{equip.id}\）\n"
+        info = f"👚【{equip.name}】（{equip.id}）\n"
         info += f"部件类型：{part_type_name}\n"
 
         suit = getattr(equip, 'suit', None)
@@ -90,6 +90,3 @@ class EquipCommands:
             Comp.Image.fromFileSystem(temp_path),
             Comp.Plain(info),
         ]
-
-
-__all__ = ["EquipCommands"]

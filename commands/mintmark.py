@@ -68,6 +68,3 @@ class MintmarkCommands:
     async def _prepare_gem_result(self, gem_obj):
         info = self._build_gem_info(gem_obj)
         return [Comp.Plain(info)]
-
-
-__all__ = ["MintmarkCommands"]

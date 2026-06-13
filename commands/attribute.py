@@ -91,6 +91,3 @@ class AttributeCommands:
         except Exception as e:
             logger.error(f"type_matchup selection error: {e}")
             yield event.plain_result(f"发生错误: {e}")
-
-
-__all__ = ["AttributeCommands"]

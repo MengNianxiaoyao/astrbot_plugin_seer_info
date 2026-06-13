@@ -93,65 +93,62 @@ class SeerInfoPlugin(Star):
             await close_renderer()
         logger.info("SeerInfo 插件已卸载")
 
-    @filter.command("精灵", alias={"查询精灵信息", "魂印", "技能"}, ignore_prefix=True)
+    @filter.command("精灵", alias={"查询精灵信息", "魂印", "技能"}, desc="查询精灵基础信息", ignore_prefix=True)
     async def pet_info(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._pet_cmds.pet_info(event, arg):
             yield result
 
-    @filter.command("立绘", alias={"皮肤", "查询立绘"}, ignore_prefix=True)
+    @filter.command("立绘", alias={"皮肤", "查询立绘"}, desc="查询精灵或皮肤立绘", ignore_prefix=True)
     async def pet_image(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._pet_cmds.pet_image(event, arg):
             yield result
 
-    @filter.command("属性", alias={"属性表"},ignore_prefix=True)
+    @filter.command("属性", alias={"属性表"}, desc="查询属性克制表", ignore_prefix=True)
     async def type_matchup(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._attr_cmds.type_matchup(event, arg):
             yield result
 
-    @filter.command("异常", alias={"查询异常", "异常状态", "查询异常状态"}, ignore_prefix=True)
+    @filter.command("异常", alias={"查询异常", "异常状态", "查询异常状态"}, desc="查询异常状态信息", ignore_prefix=True)
     async def battle_effect(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._effect_cmds.battle_effect(event, arg):
             yield result
 
-    @filter.command("刻印", ignore_prefix=True)
+    @filter.command("刻印", desc="查询刻印信息及数值", ignore_prefix=True)
     async def mintmark(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._mintmark_cmds.mintmark(event, arg):
             yield result
 
-    @filter.command("宝石", alias={"刻印宝石"}, ignore_prefix=True)
+    @filter.command("宝石", alias={"刻印宝石"}, desc="查询刻印宝石信息", ignore_prefix=True)
     async def gem(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._mintmark_cmds.gem(event, arg):
             yield result
 
-    @filter.command("套装", alias={"查询套装信息"}, ignore_prefix=True)
+    @filter.command("套装", alias={"查询套装信息"}, desc="查询套装信息", ignore_prefix=True)
     async def suit(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._equip_cmds.suit(event, arg):
             yield result
 
-    @filter.command("部件", alias={"查询部件信息"}, ignore_prefix=True)
+    @filter.command("部件", alias={"查询部件信息"}, desc="查询装备部件信息", ignore_prefix=True)
     async def equip(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._equip_cmds.equip(event, arg):
             yield result
 
-    @filter.command("称号", alias={"查询称号信息"}, ignore_prefix=True)
+    @filter.command("称号", alias={"查询称号信息"}, desc="查询称号信息", ignore_prefix=True)
     async def title_info(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._title_cmds.title_info(event, arg):
             yield result
 
-    @filter.command("下周预告", alias={"预告"}, ignore_prefix=True)
+    @filter.command("下周预告", alias={"预告"}, desc="获取下周预告图", ignore_prefix=True)
     async def preview_cmd(self, event: AstrMessageEvent):
         async for result in self._misc_cmds.preview_cmd(event):
             yield result
 
-    @filter.command("开服查询", alias={"开服了吗"}, ignore_prefix=True)
+    @filter.command("开服查询", alias={"开服了吗"}, desc="查询服务器是否已开服", ignore_prefix=True)
     async def server_info_cmd(self, event: AstrMessageEvent):
         async for result in self._misc_cmds.server_info_cmd(event):
             yield result
 
-    @filter.command("帮助", ignore_prefix=True)
+    @filter.command("帮助", desc="显示帮助信息", ignore_prefix=True)
     async def help_cmd(self, event: AstrMessageEvent):
         async for result in self._misc_cmds.help_cmd(event):
             yield result
-
-
-__all__ = ["SeerInfoPlugin"]

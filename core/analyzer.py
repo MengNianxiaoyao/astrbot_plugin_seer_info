@@ -173,6 +173,3 @@ def parse_analyze_desc(desc: str) -> str:
         return ""
     parser = AnalyzeDescParser.from_cache(desc)
     return parser.to_html(_ANALYZE_DESC_STYLES)
-
-
-__all__ = ["AnalyzeDescParser", "parse_analyze_desc", "_ANALYZE_DESC_STYLES", "TextSegment", "DescLine"]

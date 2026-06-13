@@ -124,6 +124,3 @@ class PetCommands:
             Comp.Image.fromFileSystem(temp_path),
             Comp.Plain(f"💎【{skin.name}】"),
         ]
-
-
-__all__ = ["PetCommands"]

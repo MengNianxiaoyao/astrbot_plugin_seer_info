@@ -99,6 +99,3 @@ async def multi_select_query(
         log_name = error_log_name or label
         logger.error(f"{log_name} selection error: {e}")
         yield event.plain_result(f"发生错误: {e}")
-
-
-__all__ = ["multi_select_query"]

@@ -66,12 +66,3 @@ def _item_desc_fmt(mintmark: MintmarkORM) -> str:
     if attr is None or not (desc := _mark_type_description(attr)):
         return f"{mintmark.id}"
     return f"{mintmark.id} {desc}"
-
-
-__all__ = [
-    "EQUIP_PART_TYPE_MAP",
-    "_mark_attributes",
-    "_mark_type_description",
-    "_fmt_attr",
-    "_item_desc_fmt",
-]

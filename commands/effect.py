@@ -46,6 +46,3 @@ class EffectCommands:
             Comp.Image.fromFileSystem(temp_path),
             Comp.Plain(info),
         ]
-
-
-__all__ = ["EffectCommands"]
