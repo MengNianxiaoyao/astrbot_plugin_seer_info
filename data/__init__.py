@@ -26,7 +26,6 @@ from .image_fetcher import (
     EquipImageGetter,
     TitleImageGetter,
     BattleEffectImageGetter,
-    PreviewImageGetter,
 )
 from .cache import to_data_uri, save_bytes_to_temp_file
 
@@ -54,7 +53,6 @@ __all__ = [
     "EquipImageGetter",
     "TitleImageGetter",
     "BattleEffectImageGetter",
-    "PreviewImageGetter",
     "to_data_uri",
     "save_bytes_to_temp_file",
 ]

@@ -319,7 +319,6 @@ class IdResolver(Generic[_T_Model]):
 class NameResolver(Generic[_T_Model]):
     def __init__(self, model: type[_T_Model], *, db_name: str = "seerapi", name_column: str = "name"):
         if not hasattr(model, name_column):
-            from astrbot.api import logger
             logger.warning(f"Model {model} has no column {name_column}")
         self.model = model
         self.db_name = db_name

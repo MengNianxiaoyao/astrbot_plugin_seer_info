@@ -1,11 +1,9 @@
 """Misc commands: 下周预告, 开服查询, 帮助."""
 
 import re
-from astrbot.api.event import AstrMessageEvent
 import httpx
-
-from ..data.image_fetcher import PreviewImageGetter
-from ..data.cache import save_bytes_to_temp_file
+from astrbot.api.event import AstrMessageEvent
+import astrbot.api.message_components as Comp
 
 
 class MiscCommands:
@@ -13,11 +11,8 @@ class MiscCommands:
 
     async def preview_cmd(self, event: AstrMessageEvent):
         """获取下周预告图"""
-        image_bytes = await PreviewImageGetter.get_bytes("")
-        temp_path = save_bytes_to_temp_file(image_bytes)
-        from astrbot.api.message_components import Comp
         yield event.chain_result([
-            Comp.Image.fromFileSystem(temp_path),
+            Comp.Image.fromURL("https://cnb.cool/HurryWang/seer-unity-preview-img-dumper-cnb/-/git/raw/master/img/preview.png"),
             Comp.Plain("预告图来自 https://github.com/WhY15w/seer-unity-preview-img-dumper")
         ])
 
