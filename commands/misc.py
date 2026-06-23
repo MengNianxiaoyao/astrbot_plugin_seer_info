@@ -31,7 +31,7 @@ class MiscCommands:
                     yield event.plain_result(text)
                     return
             yield event.plain_result("开服了哦~")
-        except Exception as e:
+        except Exception:
             yield event.plain_result("开服了哦~")
 
     async def help_cmd(self, event: AstrMessageEvent):

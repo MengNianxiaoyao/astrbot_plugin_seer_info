@@ -34,7 +34,7 @@ class AttributeCommands:
             return
 
         if len(types) > 20:
-            yield event.plain_result(f"❌重名超过20个，请重新检索关键词！")
+            yield event.plain_result("❌重名超过20个，请重新检索关键词！")
             return
 
         async def prepare_result(type_combo):
@@ -77,7 +77,7 @@ class AttributeCommands:
             await send_result(types[index], evt)
             controller.stop()
 
-        msg = f"请问你想查询的属性是……\n"
+        msg = "请问你想查询的属性是……\n"
         for i, item in enumerate(prompt_items, 1):
             msg += f"{i}. {item['name']}（{item['desc']}）\n"
         msg += "\n💬 输入序号选择 · 输入 0 退出"
