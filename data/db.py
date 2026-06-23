@@ -446,9 +446,10 @@ class PinyinResolver(Generic[_T_Model]):
 
 
 class Getter(Generic[_T_Model]):
-    def __init__(self, model: type[_T_Model], *resolvers):
+    def __init__(self, model: type[_T_Model], *resolvers, filter_func: Callable[[_T_Model], bool] | None = None):
         self.model = model
         self.resolvers = resolvers
+        self.filter_func = filter_func
 
     def get(self, session: Session, id_: int) -> _T_Model | None:
         return session.get(self.model, id_)
@@ -462,7 +463,10 @@ class Getter(Generic[_T_Model]):
             for obj in resolver(sessions, arg):
                 seen.setdefault(obj.id, obj)
 
-        return tuple(seen.values())
+        results = tuple(seen.values())
+        if self.filter_func:
+            results = tuple(obj for obj in results if self.filter_func(obj))
+        return results
 
 
 PetDataGetter = Getter(
@@ -484,6 +488,7 @@ MintmarkDataGetter = Getter(
     MintmarkORM,
     IdResolver(MintmarkORM),
     NameResolver(MintmarkORM),
+    filter_func=lambda mm: not getattr(mm, 'connected_universal_parts', None),
 )
 
 GemDataGetter = Getter(
