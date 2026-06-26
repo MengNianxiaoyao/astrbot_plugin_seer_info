@@ -55,13 +55,14 @@ class AttributeCommands:
         prompt_items = [
             {
                 "name": f"{t.primary.name if t.primary else ''}"
-                        f"{t.secondary.name if t.secondary else '（单属性）'}",
-                "desc": str(t.id), "value": t.id,
+                f"{t.secondary.name if t.secondary else '（单属性）'}",
+                "desc": str(t.id),
+                "value": t.id,
             }
             for t in types[:20]
         ]
 
-        prompt_map = {str(i+1): p["value"] for i, p in enumerate(prompt_items)}
+        prompt_map = {str(i + 1): p["value"] for i, p in enumerate(prompt_items)}
 
         @session_waiter(timeout=60, record_history_chains=False)
         async def handler(controller: SessionController, evt: AstrMessageEvent):

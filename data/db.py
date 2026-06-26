@@ -47,7 +47,6 @@ class PetAliasORM(SQLModel, table=True):
     target_id: int = Field(primary_key=True)
 
 
-
 class AliasModelProtocol(Protocol):
     name: str
     target_id: int
@@ -55,7 +54,7 @@ class AliasModelProtocol(Protocol):
 
 def get_plugin_db_path(db_name: str) -> str:
     """获取插件数据库文件的默认路径。
-    
+
     返回: data/plugin_data/astrbot_plugin_seer_info/{db_name}.sqlite
     """
     plugin_data_path = Path(get_astrbot_data_path()) / "plugin_data" / "astrbot_plugin_seer_info"
@@ -85,9 +84,7 @@ class DatabaseManager:
         _register_strip_func(engine)
         return engine
 
-    def register_post_load_hook(
-        self, name: str, hook: Callable[[Engine], None]
-    ) -> None:
+    def register_post_load_hook(self, name: str, hook: Callable[[Engine], None]) -> None:
         """注册一个在数据库从文件加载到内存后执行的钩子。"""
         self._post_load_hooks.setdefault(name, []).append(hook)
 
@@ -137,10 +134,7 @@ class DatabaseManager:
 
     def get_all_sessions(self) -> dict[str, SQLModelSession]:
         """创建所有已注册数据库的会话字典。"""
-        return {
-            name: SQLModelSession(engine)
-            for name, engine in self._engines.items()
-        }
+        return {name: SQLModelSession(engine) for name, engine in self._engines.items()}
 
     @property
     def registered_names(self) -> list[str]:
@@ -206,7 +200,7 @@ def register_local_database(name: str):
     data/plugin_data/{plugin_name}/{name}.sqlite
     """
     file_path = get_plugin_db_path(name)
-    
+
     if not Path(file_path).exists():
         logger.warning(f"本地文件 '{file_path}' 不存在，跳过注册 {name}")
         return
@@ -233,22 +227,16 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
                     return
 
                 local_fingerprint = None
-                sha256_exists = await asyncio.to_thread(
-                    Path(sha256_path).exists
-                )
+                sha256_exists = await asyncio.to_thread(Path(sha256_path).exists)
                 if sha256_exists:
-                    text = await asyncio.to_thread(
-                        Path(sha256_path).read_text
-                    )
+                    text = await asyncio.to_thread(Path(sha256_path).read_text)
                     local_fingerprint = text.strip()
 
                 if remote_fingerprint and remote_fingerprint == local_fingerprint:
                     if db_manager.is_database_loaded(name):
                         logger.info(f"数据库 '{name}' 指纹未变化，跳过更新")
                     else:
-                        logger.info(
-                            f"数据库 '{name}' 指纹未变化，使用本地数据"
-                        )
+                        logger.info(f"数据库 '{name}' 指纹未变化，使用本地数据")
                         db_manager.load_from_file(name, plugin_db_path)
                     return
 
@@ -259,7 +247,8 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
 
             await asyncio.to_thread(
                 plugin_db_file.parent.mkdir,
-                parents=True, exist_ok=True,
+                parents=True,
+                exist_ok=True,
             )
             await asyncio.to_thread(plugin_db_file.write_bytes, data)
 
@@ -295,6 +284,7 @@ def _strip_special(text: str) -> str:
 
 def _register_strip_func(engine: Engine) -> None:
     """注册 SQLite 自定义函数，单次调用完成字符替换，避免 13 层嵌套 REPLACE。"""
+
     def _sqlite_strip(text):
         if text is None:
             return None
@@ -394,9 +384,7 @@ class AliasResolver(Generic[_T_Model]):
         if data_session is None:
             return ()
 
-        return data_session.exec(
-            select(self.model).where(col(self.model.id).in_(ids))
-        ).all()
+        return data_session.exec(select(self.model).where(col(self.model.id).in_(ids))).all()
 
 
 _PINYIN_FTS_TABLE = "pinyin_fts"
@@ -450,7 +438,7 @@ class PinyinResolver(Generic[_T_Model]):
                         "WHERE source_table = :src "
                         "AND (pinyin_full MATCH :q OR pinyin_initials MATCH :q)"
                     ),
-                    {"src": self.source_table, "q": f'"{needle}"'}
+                    {"src": self.source_table, "q": f'"{needle}"'},
                 )
                 rowids = [row[0] for row in result.fetchall()]
         except Exception:
@@ -459,9 +447,7 @@ class PinyinResolver(Generic[_T_Model]):
         if not rowids:
             return ()
 
-        return session.exec(
-            select(self.model).where(col(self.model.id).in_(rowids))
-        ).all()
+        return session.exec(select(self.model).where(col(self.model.id).in_(rowids))).all()
 
 
 class Getter(Generic[_T_Model]):
@@ -512,7 +498,7 @@ MintmarkDataGetter = Getter(
     MintmarkORM,
     IdResolver(MintmarkORM),
     NameResolver(MintmarkORM),
-    filter_func=lambda mm: not getattr(mm, 'connected_universal_parts', None),
+    filter_func=lambda mm: not getattr(mm, "connected_universal_parts", None),
 )
 
 GemDataGetter = Getter(
@@ -618,13 +604,16 @@ TitleDataGetter = Getter(
 def _build_pinyin_fts(engine: Engine) -> None:
     try:
         with engine.connect() as conn:
-            conn.execute(text(
-                "CREATE VIRTUAL TABLE IF NOT EXISTS pinyin_fts USING fts5("
-                "source_table, pinyin_full, pinyin_initials, "
-                "tokenize='trigram')"
-            ))
+            conn.execute(
+                text(
+                    "CREATE VIRTUAL TABLE IF NOT EXISTS pinyin_fts USING fts5("
+                    "source_table, pinyin_full, pinyin_initials, "
+                    "tokenize='trigram')"
+                )
+            )
             existing_tables = {
-                row[0] for row in conn.execute(
+                row[0]
+                for row in conn.execute(
                     text("SELECT name FROM sqlite_master WHERE type='table'")
                 ).fetchall()
             }

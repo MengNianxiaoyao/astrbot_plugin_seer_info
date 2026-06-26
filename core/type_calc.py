@@ -74,13 +74,9 @@ def _calc_multiplier(
         return _calc_mixed(c1, c2)
 
     if atk_sec is not None and def_sec is None:
-        return _double_attacks_single(
-            table, attacker.primary_id, atk_sec, defender.primary_id
-        )
+        return _double_attacks_single(table, attacker.primary_id, atk_sec, defender.primary_id)
 
-    c1 = _double_attacks_single(
-        table, attacker.primary_id, atk_sec, defender.primary_id
-    )
+    c1 = _double_attacks_single(table, attacker.primary_id, atk_sec, defender.primary_id)
     c2 = _double_attacks_single(table, attacker.primary_id, atk_sec, def_sec)
     return (c1 + c2) / 2
 

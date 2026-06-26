@@ -22,6 +22,7 @@ _ID_SUFFIX_RE = re.compile(r"\((\d+)\)$")
 @dataclass(slots=True)
 class TextSegment:
     """一段带有可选颜色标记的文本片段"""
+
     text: str
     colors: tuple[str, ...] = ()
     id: int | None = None
@@ -30,6 +31,7 @@ class TextSegment:
 @dataclass(slots=True)
 class DescLine:
     """描述中的一行"""
+
     sprite: str | None = None
     indent: int = 0
     segments: list[TextSegment] = field(default_factory=list)
@@ -98,9 +100,7 @@ def _parse_desc_line(raw: str) -> DescLine:
             if can_merge:
                 line.segments[-1].text += text
             else:
-                line.segments.append(
-                    TextSegment(text=text, colors=cur, id=seg_id)
-                )
+                line.segments.append(TextSegment(text=text, colors=cur, id=seg_id))
 
     return line
 

@@ -58,8 +58,7 @@ async def multi_select_query(
         return
 
     prompt_items = [
-        {"name": item.name, "desc": str(item.id), "value": item.id}
-        for item in results[:20]
+        {"name": item.name, "desc": str(item.id), "value": item.id} for item in results[:20]
     ]
     prompt_map = {str(i + 1): p["value"] for i, p in enumerate(prompt_items)}
 

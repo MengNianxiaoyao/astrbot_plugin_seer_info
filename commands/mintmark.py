@@ -15,9 +15,9 @@ class MintmarkCommands:
     @staticmethod
     def _build_mintmark_info(mm) -> str:
         info = f"💎【{mm.name}】\n"
-        if getattr(mm, 'desc', None):
+        if getattr(mm, "desc", None):
             info += f"描述：{mm.desc}\n"
-        if hasattr(mm, 'attributes') and mm.attributes:
+        if hasattr(mm, "attributes") and mm.attributes:
             attrs = ", ".join([f"{a.name}: {a.value}" for a in mm.attributes])
             info += f"属性：{attrs}\n"
         return info
@@ -25,10 +25,10 @@ class MintmarkCommands:
     @staticmethod
     def _build_gem_info(gem) -> str:
         info = f"💎【{gem.name}】\n"
-        if hasattr(gem, 'skill_effect_in_use') and gem.skill_effect_in_use:
+        if hasattr(gem, "skill_effect_in_use") and gem.skill_effect_in_use:
             effect_infos = []
             for se in gem.skill_effect_in_use:
-                if getattr(se, 'info', None):
+                if getattr(se, "info", None):
                     effect_infos.append(se.info)
             if effect_infos:
                 info += f"效果：{' | '.join(effect_infos)}\n"
@@ -37,7 +37,8 @@ class MintmarkCommands:
     async def mintmark(self, event: AstrMessageEvent, arg: str = ""):
         """查询刻印信息及数值"""
         async for result in multi_select_query(
-            event, arg,
+            event,
+            arg,
             getter=MintmarkDataGetter,
             prepare_result=self._prepare_mintmark_result,
             label="刻印",
@@ -57,7 +58,8 @@ class MintmarkCommands:
     async def gem(self, event: AstrMessageEvent, arg: str = ""):
         """查询刻印宝石信息"""
         async for result in multi_select_query(
-            event, arg,
+            event,
+            arg,
             getter=GemDataGetter,
             prepare_result=self._prepare_gem_result,
             label="宝石",

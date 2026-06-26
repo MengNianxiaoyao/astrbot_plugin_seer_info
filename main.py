@@ -59,7 +59,8 @@ class SeerInfoPlugin(Star):
                 fp = partial(get_fingerprint, fp_url) if fp_url else None
                 interval = self.config.get(interval_key, 60)
                 register_database(
-                    name, sync_url=sync_url,
+                    name,
+                    sync_url=sync_url,
                     sync_interval_minutes=interval,
                     get_fingerprint=fp,
                 )
@@ -67,12 +68,14 @@ class SeerInfoPlugin(Star):
                 register_local_database(name)
 
         _register(
-            "seerapi", "seerapi_sync_url",
+            "seerapi",
+            "seerapi_sync_url",
             "seerapi_fingerprint_url",
             "seerapi_sync_interval_minutes",
         )
         _register(
-            "aliases", "alias_sync_url",
+            "aliases",
+            "alias_sync_url",
             "alias_fingerprint_url",
             "alias_sync_interval_minutes",
         )

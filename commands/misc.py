@@ -12,10 +12,14 @@ class MiscCommands:
 
     async def preview_cmd(self, event: AstrMessageEvent):
         """获取下周预告图"""
-        yield event.chain_result([
-            Comp.Image.fromURL("https://cnb.cool/HurryWang/seer-unity-preview-img-dumper-cnb/-/git/raw/master/img/preview.png"),
-            Comp.Plain("预告图来自 https://github.com/WhY15w/seer-unity-preview-img-dumper")
-        ])
+        yield event.chain_result(
+            [
+                Comp.Image.fromURL(
+                    "https://cnb.cool/HurryWang/seer-unity-preview-img-dumper-cnb/-/git/raw/master/img/preview.png"
+                ),
+                Comp.Plain("预告图来自 https://github.com/WhY15w/seer-unity-preview-img-dumper"),
+            ]
+        )
 
     async def server_info_cmd(self, event: AstrMessageEvent):
         """查询服务器是否已开服"""

@@ -16,14 +16,15 @@ class TitleCommands:
     def _build_title_info(title) -> str:
         info = f"【{title.name}】\n"
         info += f"🆔：{title.id}"
-        if getattr(title, 'ability_desc', None):
+        if getattr(title, "ability_desc", None):
             info += f"\n效果：{title.ability_desc}"
         return info
 
     async def title_info(self, event: AstrMessageEvent, arg: str = ""):
         """查询称号信息"""
         async for result in multi_select_query(
-            event, arg,
+            event,
+            arg,
             getter=TitleDataGetter,
             prepare_result=self._prepare_result,
             label="称号",

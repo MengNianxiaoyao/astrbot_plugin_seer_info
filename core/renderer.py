@@ -87,15 +87,15 @@ class LocalRenderer:
                 return page
         except asyncio.QueueEmpty:
             pass
-        
+
         context = await self._get_context()
         return await context.new_page()
-    
+
     async def _return_page(self, page: Page) -> None:
         """归还页面到池中，如果池满则关闭页面"""
         if page.is_closed():
             return
-        
+
         try:
             self._page_pool.put_nowait(page)
         except asyncio.QueueFull:
@@ -141,14 +141,22 @@ class LocalRenderer:
         page = await self._get_page()
         try:
             return await self._screenshot(
-                page, html_content, viewport_width, timeout_ms,
-                image_format, jpeg_quality,
+                page,
+                html_content,
+                viewport_width,
+                timeout_ms,
+                image_format,
+                jpeg_quality,
             )
         except TargetClosedError:
             page = await self._get_page()
             return await self._screenshot(
-                page, html_content, viewport_width, timeout_ms,
-                image_format, jpeg_quality,
+                page,
+                html_content,
+                viewport_width,
+                timeout_ms,
+                image_format,
+                jpeg_quality,
             )
         except Exception as e:
             logger.error(f"渲染图片失败: {e}")
@@ -167,23 +175,21 @@ class LocalRenderer:
         jpeg_quality: int = 85,
     ) -> bytes:
         await page.set_viewport_size({"width": viewport_width, "height": 600})
-        await page.set_content(
-            html_content, wait_until="domcontentloaded", timeout=timeout_ms
-        )
-        
+        await page.set_content(html_content, wait_until="domcontentloaded", timeout=timeout_ms)
+
         screenshot_kwargs = {
             "full_page": True,
             "timeout": timeout_ms,
             "animations": "disabled",
             "caret": "hide",
         }
-        
+
         if image_format == "png":
             screenshot_kwargs["type"] = "png"
         else:  # jpeg
             screenshot_kwargs["type"] = "jpeg"
             screenshot_kwargs["quality"] = jpeg_quality
-        
+
         return await page.screenshot(**screenshot_kwargs)
 
     async def close(self):
@@ -306,7 +312,7 @@ async def render_to_image(
     jpeg_quality: int = 85,
 ) -> str:
     """统一渲染入口。html_render 为 None 时使用本地渲染，否则使用远程渲染。
-    
+
     返回图片文件路径。
     """
     if html_render is not None:

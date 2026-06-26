@@ -14,10 +14,10 @@ class EffectCommands:
 
     @staticmethod
     def _build_effect_info(effect) -> str:
-        type_names = ', '.join(
-            getattr(t, 'name', '') for t in getattr(effect, 'type', []) or []
-        ) or '无'
-        resistance_name = getattr(getattr(effect, 'resistance', None), 'name', '无')
+        type_names = (
+            ", ".join(getattr(t, "name", "") for t in getattr(effect, "type", []) or []) or "无"
+        )
+        resistance_name = getattr(getattr(effect, "resistance", None), "name", "无")
 
         info = (
             f"💎【{effect.name}（ID：{effect.id}）】\n"
@@ -30,7 +30,8 @@ class EffectCommands:
     async def battle_effect(self, event: AstrMessageEvent, arg: str = ""):
         """查询异常状态信息"""
         async for result in multi_select_query(
-            event, arg,
+            event,
+            arg,
             getter=BattleEffectDataGetter,
             prepare_result=self._prepare_result,
             label="异常状态",

@@ -17,25 +17,25 @@ class EquipCommands:
     def _build_suit_info(suit) -> str:
         info = f"👚【{suit.name}】（{suit.id}）\n"
 
-        equips = getattr(suit, 'equips', None)
+        equips = getattr(suit, "equips", None)
         if equips:
             info += "部件：\n"
             for equip in equips:
-                part_type_id = getattr(getattr(equip, 'part_type', None), 'id', None)
+                part_type_id = getattr(getattr(equip, "part_type", None), "id", None)
                 part_type_name = EQUIP_PART_TYPE_MAP.get(part_type_id, "未知")
                 equip_text = f"  {part_type_name}：{equip.name}（{equip.id}）"
-                bonus = getattr(equip, 'bonus', None)
-                if bonus and getattr(bonus, 'desc', None):
+                bonus = getattr(equip, "bonus", None)
+                if bonus and getattr(bonus, "desc", None):
                     equip_text += f"\n      效果：{bonus.desc}"
                 info += equip_text + "\n"
 
-        bonus = getattr(getattr(suit, 'bonus', None), 'desc', None)
+        bonus = getattr(getattr(suit, "bonus", None), "desc", None)
         info += f"套装效果：{bonus or '无'}"
         return info
 
     @staticmethod
     def _build_equip_info(equip) -> str:
-        part_type_id = getattr(getattr(equip, 'part_type', None), 'id', None)
+        part_type_id = getattr(getattr(equip, "part_type", None), "id", None)
         if part_type_id is not None:
             part_type_name = EQUIP_PART_TYPE_MAP.get(part_type_id, "未知")
         else:
@@ -44,12 +44,12 @@ class EquipCommands:
         info = f"👚【{equip.name}】（{equip.id}）\n"
         info += f"部件类型：{part_type_name}\n"
 
-        suit = getattr(equip, 'suit', None)
+        suit = getattr(equip, "suit", None)
         if suit:
             info += f"所属套装：{suit.name}（{suit.id}）\n"
 
-        bonus = getattr(equip, 'bonus', None)
-        if bonus and getattr(bonus, 'desc', None):
+        bonus = getattr(equip, "bonus", None)
+        if bonus and getattr(bonus, "desc", None):
             info += f"效果：{bonus.desc}\n"
 
         return info
@@ -57,7 +57,8 @@ class EquipCommands:
     async def suit(self, event: AstrMessageEvent, arg: str = ""):
         """查询套装信息"""
         async for result in multi_select_query(
-            event, arg,
+            event,
+            arg,
             getter=SuitDataGetter,
             prepare_result=self._prepare_suit_result,
             label="套装",
@@ -77,7 +78,8 @@ class EquipCommands:
     async def equip(self, event: AstrMessageEvent, arg: str = ""):
         """查询装备部件信息"""
         async for result in multi_select_query(
-            event, arg,
+            event,
+            arg,
             getter=EquipDataGetter,
             prepare_result=self._prepare_equip_result,
             label="部件",

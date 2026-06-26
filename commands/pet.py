@@ -62,8 +62,7 @@ class PetCommands:
             return
 
         prompt_items = [
-            {"name": pet.name, "desc": str(pet.id), "value": pet.id}
-            for pet in pets[:20]
+            {"name": pet.name, "desc": str(pet.id), "value": pet.id} for pet in pets[:20]
         ]
         prompt_map = {str(i + 1): p["value"] for i, p in enumerate(prompt_items)}
 
@@ -109,7 +108,8 @@ class PetCommands:
     async def pet_image(self, event: AstrMessageEvent, arg: str = ""):
         """查询精灵或皮肤立绘"""
         async for result in multi_select_query(
-            event, arg,
+            event,
+            arg,
             getter=PetSkinDataGetter,
             prepare_result=self._prepare_skin_result,
             label="立绘",

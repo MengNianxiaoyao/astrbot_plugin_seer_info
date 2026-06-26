@@ -104,12 +104,12 @@ async def _fallback_image(error: Exception) -> bytes:
 
     from PIL import Image, ImageDraw
 
-    img = Image.new('RGB', (300, 100), color='white')
+    img = Image.new("RGB", (300, 100), color="white")
     draw = ImageDraw.Draw(img)
-    draw.text((10, 40), "获取图片失败！", fill='red')
+    draw.text((10, 40), "获取图片失败！", fill="red")
 
     buffer = BytesIO()
-    img.save(buffer, format='PNG')
+    img.save(buffer, format="PNG")
     _fallback_cache = buffer.getvalue()
     return _fallback_cache
 

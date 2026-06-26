@@ -14,8 +14,8 @@ _cache_dir: Path | None = None
 
 # 图片格式映射：魔数 -> (mime_type, suffix)
 _IMAGE_FORMATS: dict[bytes, tuple[str, str]] = {
-    b'\x89PNG': ("image/png", ".png"),
-    b'\xff\xd8\xff': ("image/jpeg", ".jpeg"),
+    b"\x89PNG": ("image/png", ".png"),
+    b"\xff\xd8\xff": ("image/jpeg", ".jpeg"),
 }
 
 
@@ -46,7 +46,7 @@ def _fast_fingerprint(data: bytes) -> str:
 def _detect_image_format(data: bytes) -> tuple[str, str]:
     """检测图片格式，返回 (mime_type, suffix)。"""
     for magic, fmt in _IMAGE_FORMATS.items():
-        if data[:len(magic)] == magic:
+        if data[: len(magic)] == magic:
             return fmt
     return "image/jpeg", ".jpeg"
 
