@@ -226,7 +226,8 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
 
     try:
         async with aiohttp.ClientSession() as session:
-            if plugin_db_file.exists() and get_fingerprint:
+            db_exists = await asyncio.to_thread(plugin_db_file.exists)
+            if db_exists and get_fingerprint:
                 try:
                     remote_fingerprint = await get_fingerprint(session)
                 except Exception as e:
@@ -234,14 +235,22 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
                     return
 
                 local_fingerprint = None
-                if Path(sha256_path).exists():
-                    local_fingerprint = Path(sha256_path).read_text().strip()
+                sha256_exists = await asyncio.to_thread(
+                    Path(sha256_path).exists
+                )
+                if sha256_exists:
+                    text = await asyncio.to_thread(
+                        Path(sha256_path).read_text
+                    )
+                    local_fingerprint = text.strip()
 
                 if remote_fingerprint and remote_fingerprint == local_fingerprint:
                     if db_manager.is_database_loaded(name):
                         logger.info(f"数据库 '{name}' 指纹未变化，跳过更新")
                     else:
-                        logger.info(f"数据库 '{name}' 指纹未变化，使用本地数据")
+                        logger.info(
+                            f"数据库 '{name}' 指纹未变化，使用本地数据"
+                        )
                         db_manager.load_from_file(name, plugin_db_path)
                     return
 
@@ -250,13 +259,19 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
                 resp.raise_for_status()
                 data = await resp.read()
 
-            plugin_db_file.parent.mkdir(parents=True, exist_ok=True)
-            plugin_db_file.write_bytes(data)
+            await asyncio.to_thread(
+                plugin_db_file.parent.mkdir,
+                parents=True, exist_ok=True,
+            )
+            await asyncio.to_thread(plugin_db_file.write_bytes, data)
 
             if get_fingerprint:
                 try:
                     remote_fp = await get_fingerprint(session)
-                    Path(sha256_path).write_text(remote_fp.strip())
+                    await asyncio.to_thread(
+                        Path(sha256_path).write_text,
+                        remote_fp.strip(),
+                    )
                     logger.info(f"已保存指纹: {remote_fp.strip()}")
                 except Exception as e:
                     logger.warning(f"保存指纹失败: {e}")
@@ -317,7 +332,13 @@ class IdResolver(Generic[_T_Model]):
 
 
 class NameResolver(Generic[_T_Model]):
-    def __init__(self, model: type[_T_Model], *, db_name: str = "seerapi", name_column: str = "name"):
+    def __init__(
+        self,
+        model: type[_T_Model],
+        *,
+        db_name: str = "seerapi",
+        name_column: str = "name",
+    ):
         if not hasattr(model, name_column):
             logger.warning(f"Model {model} has no column {name_column}")
         self.model = model
@@ -446,7 +467,12 @@ class PinyinResolver(Generic[_T_Model]):
 
 
 class Getter(Generic[_T_Model]):
-    def __init__(self, model: type[_T_Model], *resolvers, filter_func: Callable[[_T_Model], bool] | None = None):
+    def __init__(
+        self,
+        model: type[_T_Model],
+        *resolvers,
+        filter_func: Callable[[_T_Model], bool] | None = None,
+    ):
         self.model = model
         self.resolvers = resolvers
         self.filter_func = filter_func
@@ -615,10 +641,17 @@ def _build_pinyin_fts(engine: Engine) -> None:
                         initials = "".join(s[0] for s in syllables if s)
                         conn.execute(
                             text(
-                                f"INSERT INTO [{_PINYIN_FTS_TABLE}] (rowid, source_table, pinyin_full, pinyin_initials) "
-                                "VALUES (:rowid, :src, :full, :initials)"
+                                f"INSERT INTO [{_PINYIN_FTS_TABLE}]"
+                                " (rowid, source_table,"
+                                " pinyin_full, pinyin_initials)"
+                                " VALUES (:rowid, :src, :full, :initials)"
                             ),
-                            {"rowid": row_id, "src": source_table, "full": full, "initials": initials}
+                            {
+                                "rowid": row_id,
+                                "src": source_table,
+                                "full": full,
+                                "initials": initials,
+                            },
                         )
                 except Exception as e:
                     logger.error(f"拼音 FTS 索引填充失败 for {source_table}: {e}")

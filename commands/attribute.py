@@ -53,8 +53,11 @@ class AttributeCommands:
             await evt.send(evt.image_result(await prepare_result(type_combo)))
 
         prompt_items = [
-            {"name": f"{t.primary.name if t.primary else ''}{t.secondary.name if t.secondary else '（单属性）'}",
-             "desc": str(t.id), "value": t.id}
+            {
+                "name": f"{t.primary.name if t.primary else ''}"
+                        f"{t.secondary.name if t.secondary else '（单属性）'}",
+                "desc": str(t.id), "value": t.id,
+            }
             for t in types[:20]
         ]
 

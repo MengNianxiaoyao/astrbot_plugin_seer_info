@@ -27,7 +27,9 @@ from ..data.cache import to_data_uri
 TEMPLATE_PATH = "templates/pet_info"
 TEMPLATE_NAME = "template.html.j2"
 
-PET_TEMPLATE = (Path(__file__).parent.parent / TEMPLATE_PATH / TEMPLATE_NAME).read_text(encoding="utf-8")
+PET_TEMPLATE = (
+    Path(__file__).parent.parent / TEMPLATE_PATH / TEMPLATE_NAME
+).read_text(encoding="utf-8")
 
 
 def _extract_skill(skill_in_pet) -> list[dict[str, Any]]:
@@ -49,8 +51,14 @@ def _extract_skill(skill_in_pet) -> list[dict[str, Any]]:
         for e in getattr(skill, 'skill_effect', [])
     ]
 
-    hide_effect_desc = getattr(skill_hide_effect, 'description', None) if skill_hide_effect else None
-    activation_item = getattr(skill_activation_item, 'name', None) if skill_activation_item else None
+    hide_effect_desc = (
+        getattr(skill_hide_effect, 'description', None)
+        if skill_hide_effect else None
+    )
+    activation_item = (
+        getattr(skill_activation_item, 'name', None)
+        if skill_activation_item else None
+    )
 
     result = {
         'id': skill.id,
@@ -141,7 +149,11 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
     except Exception as e:
         logger.error(f"获取性别图标失败: {e}")
 
-    pet_type_id = pet.type.id if hasattr(pet, 'type') and getattr(pet.type, 'id', None) is not None else 0
+    pet_type_id = (
+        pet.type.id
+        if hasattr(pet, 'type') and getattr(pet.type, 'id', None) is not None
+        else 0
+    )
     pet_type_name = pet.type.name if hasattr(pet, 'type') else ''
 
     all_skills = []
@@ -164,14 +176,22 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
     advanced_skills = [s for s in all_skills if s.get('is_advanced')][::-1]
     special_skills = [s for s in all_skills if s.get('is_special')][::-1]
     level_skills = sorted(
-        [s for s in all_skills if not s.get('is_fifth') and not s.get('is_advanced') and not s.get('is_special')],
+        [
+            s for s in all_skills
+            if not s.get('is_fifth')
+            and not s.get('is_advanced')
+            and not s.get('is_special')
+        ],
         key=lambda x: x.get('learning_level') or 0,
         reverse=True,
     )
 
     skill_ids = [sl.skill_id for sl in pet.skill_links] if pet.skill_links else []
     pet_skill_names = {s['name'] for s in all_skills}
-    type_ids = list({skill['type_id'] for skill in all_skills if skill.get('type_id')} | {pet_type_id})
+    type_ids = list(
+        {skill['type_id'] for skill in all_skills if skill.get('type_id')}
+        | {pet_type_id}
+    )
 
     session = object_session(pet)
     mintmarks = []
@@ -179,8 +199,14 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
         try:
             stmt = (
                 select(MintmarkORM)
-                .outerjoin(SkillMintmarkLink, col(SkillMintmarkLink.mintmark_id) == col(MintmarkORM.id))
-                .outerjoin(PetMintmarkLink, col(PetMintmarkLink.mintmark_id) == col(MintmarkORM.id))
+                .outerjoin(
+                    SkillMintmarkLink,
+                    col(SkillMintmarkLink.mintmark_id) == col(MintmarkORM.id),
+                )
+                .outerjoin(
+                    PetMintmarkLink,
+                    col(PetMintmarkLink.mintmark_id) == col(MintmarkORM.id),
+                )
                 .where(
                     col(SkillMintmarkLink.skill_id).in_(skill_ids)
                     | (col(PetMintmarkLink.pet_id) == pet_id)
@@ -197,9 +223,16 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
 
     try:
         resource_id = getattr(pet, 'resource_id', None)
+        res_str = str(resource_id) if resource_id else None
 
-        pet_head_task = PetHeadImageGetter.get_bytes(str(resource_id)) if resource_id else asyncio.sleep(0, result=b'')
-        pet_body_task = PetBodyImageGetter.get_bytes(str(resource_id)) if resource_id else asyncio.sleep(0, result=b'')
+        pet_head_task = (
+            PetHeadImageGetter.get_bytes(res_str)
+            if res_str else asyncio.sleep(0, result=b'')
+        )
+        pet_body_task = (
+            PetBodyImageGetter.get_bytes(res_str)
+            if res_str else asyncio.sleep(0, result=b'')
+        )
 
         gather_results = await asyncio.gather(
             pet_head_task,
@@ -226,14 +259,19 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
             type_icons["prop"] = to_data_uri(type_icon_results[-1])
 
         skill_marks = []
-        for mm, icon_result in zip(mintmarks, mm_icon_results):
-            icon_uri = '' if isinstance(icon_result, Exception) else to_data_uri(icon_result)
+        for mm, icon_result in zip(mintmarks, mm_icon_results, strict=True):
+            icon_uri = (
+                '' if isinstance(icon_result, Exception)
+                else to_data_uri(icon_result)
+            )
             skill_marks.append({
                 'id': mm.id,
                 'name': mm.name,
                 'desc': getattr(mm, 'desc', ''),
                 'icon': icon_uri,
-                'skills': list(dict.fromkeys(s.name for s in mm.skill if s.name in pet_skill_names)),
+                'skills': list(dict.fromkeys(
+                    s.name for s in mm.skill if s.name in pet_skill_names
+                )),
             })
     except Exception as e:
         logger.error(f"获取精灵图标失败: {e}")

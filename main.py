@@ -58,19 +58,40 @@ class SeerInfoPlugin(Star):
             if sync_url:
                 fp_url = self.config.get(fp_url_key, "")
                 fp = partial(get_fingerprint, fp_url) if fp_url else None
-                register_database(name, sync_url=sync_url, sync_interval_minutes=self.config.get(interval_key, 60), get_fingerprint=fp)
+                interval = self.config.get(interval_key, 60)
+                register_database(
+                    name, sync_url=sync_url,
+                    sync_interval_minutes=interval,
+                    get_fingerprint=fp,
+                )
             else:
                 register_local_database(name)
 
-        _register("seerapi", "seerapi_sync_url", "seerapi_fingerprint_url", "seerapi_sync_interval_minutes")
-        _register("aliases", "alias_sync_url", "alias_fingerprint_url", "alias_sync_interval_minutes")
+        _register(
+            "seerapi", "seerapi_sync_url",
+            "seerapi_fingerprint_url",
+            "seerapi_sync_interval_minutes",
+        )
+        _register(
+            "aliases", "alias_sync_url",
+            "alias_fingerprint_url",
+            "alias_sync_interval_minutes",
+        )
 
     def _init_commands(self):
         html_render = None if self._is_local_render else self.html_render
         image_format = self.config.get("image_format", "jpeg")
         jpeg_quality = self.config.get("jpeg_quality", 85)
-        self._pet_cmds = PetCommands(html_render=html_render, image_format=image_format, jpeg_quality=jpeg_quality)
-        self._attr_cmds = AttributeCommands(html_render=html_render, image_format=image_format, jpeg_quality=jpeg_quality)
+        self._pet_cmds = PetCommands(
+            html_render=html_render,
+            image_format=image_format,
+            jpeg_quality=jpeg_quality,
+        )
+        self._attr_cmds = AttributeCommands(
+            html_render=html_render,
+            image_format=image_format,
+            jpeg_quality=jpeg_quality,
+        )
         self._effect_cmds = EffectCommands()
         self._mintmark_cmds = MintmarkCommands()
         self._equip_cmds = EquipCommands()
@@ -93,12 +114,22 @@ class SeerInfoPlugin(Star):
             await close_renderer()
         logger.info("SeerInfo 插件已卸载")
 
-    @filter.command("精灵", alias={"查询精灵信息", "魂印", "技能"}, desc="查询精灵基础信息", ignore_prefix=True)
+    @filter.command(
+        "精灵",
+        alias={"查询精灵信息", "魂印", "技能"},
+        desc="查询精灵基础信息",
+        ignore_prefix=True,
+    )
     async def pet_info(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._pet_cmds.pet_info(event, arg):
             yield result
 
-    @filter.command("立绘", alias={"皮肤", "查询立绘"}, desc="查询精灵或皮肤立绘", ignore_prefix=True)
+    @filter.command(
+        "立绘",
+        alias={"皮肤", "查询立绘"},
+        desc="查询精灵或皮肤立绘",
+        ignore_prefix=True,
+    )
     async def pet_image(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._pet_cmds.pet_image(event, arg):
             yield result
@@ -108,7 +139,12 @@ class SeerInfoPlugin(Star):
         async for result in self._attr_cmds.type_matchup(event, arg):
             yield result
 
-    @filter.command("异常", alias={"查询异常", "异常状态", "查询异常状态"}, desc="查询异常状态信息", ignore_prefix=True)
+    @filter.command(
+        "异常",
+        alias={"查询异常", "异常状态", "查询异常状态"},
+        desc="查询异常状态信息",
+        ignore_prefix=True,
+    )
     async def battle_effect(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._effect_cmds.battle_effect(event, arg):
             yield result

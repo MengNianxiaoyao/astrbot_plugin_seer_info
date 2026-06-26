@@ -17,7 +17,9 @@ from ..data.cache import to_data_uri
 TEMPLATE_PATH = "templates/type_matchup"
 TEMPLATE_NAME = "template.html.j2"
 
-TYPE_MATCHUP_TEMPLATE = (Path(__file__).parent.parent / TEMPLATE_PATH / TEMPLATE_NAME).read_text(encoding="utf-8")
+TYPE_MATCHUP_TEMPLATE = (
+    Path(__file__).parent.parent / TEMPLATE_PATH / TEMPLATE_NAME
+).read_text(encoding="utf-8")
 
 
 async def build_type_matchup_render_data(type_combo: TypeCombinationORM) -> dict[str, Any]:

@@ -107,39 +107,49 @@ class LocalRenderer:
         data: dict[str, Any],
         *,
         viewport_width: int = DEFAULT_VIEWPORT_WIDTH,
-        timeout: float = DEFAULT_TIMEOUT,
+        timeout_ms: float = DEFAULT_TIMEOUT,
         image_format: str = "jpeg",
         jpeg_quality: int = 85,
     ) -> bytes:
         template = self._env.get_template(template_name)
         html_content = template.render(**data)
-        return await self._render_html(html_content, viewport_width, timeout, image_format, jpeg_quality)
+        return await self._render_html(
+            html_content, viewport_width, timeout_ms, image_format, jpeg_quality
+        )
 
     async def render_string(
         self,
         html_string: str,
         *,
         viewport_width: int = DEFAULT_VIEWPORT_WIDTH,
-        timeout: float = DEFAULT_TIMEOUT,
+        timeout_ms: float = DEFAULT_TIMEOUT,
         image_format: str = "jpeg",
         jpeg_quality: int = 85,
     ) -> bytes:
-        return await self._render_html(html_string, viewport_width, timeout, image_format, jpeg_quality)
+        return await self._render_html(
+            html_string, viewport_width, timeout_ms, image_format, jpeg_quality
+        )
 
     async def _render_html(
         self,
         html_content: str,
         viewport_width: int,
-        timeout: float,
+        timeout_ms: float,
         image_format: str = "jpeg",
         jpeg_quality: int = 85,
     ) -> bytes:
         page = await self._get_page()
         try:
-            return await self._screenshot(page, html_content, viewport_width, timeout, image_format, jpeg_quality)
+            return await self._screenshot(
+                page, html_content, viewport_width, timeout_ms,
+                image_format, jpeg_quality,
+            )
         except TargetClosedError:
             page = await self._get_page()
-            return await self._screenshot(page, html_content, viewport_width, timeout, image_format, jpeg_quality)
+            return await self._screenshot(
+                page, html_content, viewport_width, timeout_ms,
+                image_format, jpeg_quality,
+            )
         except Exception as e:
             logger.error(f"渲染图片失败: {e}")
             raise
@@ -152,16 +162,18 @@ class LocalRenderer:
         page: Page,
         html_content: str,
         viewport_width: int,
-        timeout: float,
+        timeout_ms: float,
         image_format: str = "jpeg",
         jpeg_quality: int = 85,
     ) -> bytes:
         await page.set_viewport_size({"width": viewport_width, "height": 600})
-        await page.set_content(html_content, wait_until="domcontentloaded", timeout=timeout)
+        await page.set_content(
+            html_content, wait_until="domcontentloaded", timeout=timeout_ms
+        )
         
         screenshot_kwargs = {
             "full_page": True,
-            "timeout": timeout,
+            "timeout": timeout_ms,
             "animations": "disabled",
             "caret": "hide",
         }
@@ -242,7 +254,7 @@ async def render_html_to_bytes(
     data: dict[str, Any],
     *,
     viewport_width: int = DEFAULT_VIEWPORT_WIDTH,
-    timeout: float = DEFAULT_TIMEOUT,
+    timeout_ms: float = DEFAULT_TIMEOUT,
     image_format: str = "jpeg",
     jpeg_quality: int = 85,
 ) -> bytes:
@@ -259,7 +271,7 @@ async def render_html_to_bytes(
     return await renderer.render_string(
         html_content,
         viewport_width=viewport_width,
-        timeout=timeout,
+        timeout_ms=timeout_ms,
         image_format=image_format,
         jpeg_quality=jpeg_quality,
     )
@@ -270,7 +282,7 @@ async def render_template_to_bytes(
     data: dict[str, Any],
     *,
     viewport_width: int = DEFAULT_VIEWPORT_WIDTH,
-    timeout: float = DEFAULT_TIMEOUT,
+    timeout_ms: float = DEFAULT_TIMEOUT,
     image_format: str = "jpeg",
     jpeg_quality: int = 85,
 ) -> bytes:
@@ -279,7 +291,7 @@ async def render_template_to_bytes(
         template_name,
         data,
         viewport_width=viewport_width,
-        timeout=timeout,
+        timeout_ms=timeout_ms,
         image_format=image_format,
         jpeg_quality=jpeg_quality,
     )

@@ -22,7 +22,12 @@ _IMAGE_FORMATS: dict[bytes, tuple[str, str]] = {
 def _get_cache_dir() -> Path:
     global _cache_dir
     if _cache_dir is None:
-        _cache_dir = Path(get_astrbot_data_path()) / "plugin_data" / "astrbot_plugin_seer_info" / "image_cache"
+        _cache_dir = (
+            Path(get_astrbot_data_path())
+            / "plugin_data"
+            / "astrbot_plugin_seer_info"
+            / "image_cache"
+        )
         _cache_dir.mkdir(parents=True, exist_ok=True)
     return _cache_dir
 
