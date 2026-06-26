@@ -2,9 +2,9 @@
 
 from collections.abc import Awaitable, Callable
 
-from astrbot.api.event import AstrMessageEvent
 from astrbot.api import logger
-from astrbot.core.utils.session_waiter import session_waiter, SessionController
+from astrbot.api.event import AstrMessageEvent
+from astrbot.core.utils.session_waiter import SessionController, session_waiter
 
 
 async def multi_select_query(

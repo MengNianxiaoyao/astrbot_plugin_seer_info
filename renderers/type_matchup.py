@@ -4,15 +4,14 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
+from astrbot.api import logger
 from seerapi_models import TypeCombinationORM
 
-from astrbot.api import logger
-
-from ..data.image_fetcher import ElementTypeImageGetter
-from ..core.type_calc import calc_attack_table, calc_defense_table
-from ..data.db import db_manager
 from ..core.renderer import render_to_image
+from ..core.type_calc import calc_attack_table, calc_defense_table
 from ..data.cache import to_data_uri
+from ..data.db import db_manager
+from ..data.image_fetcher import ElementTypeImageGetter
 
 TEMPLATE_PATH = "templates/type_matchup"
 TEMPLATE_NAME = "template.html.j2"

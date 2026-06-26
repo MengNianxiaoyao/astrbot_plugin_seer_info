@@ -1,20 +1,20 @@
 """Pet-related commands: 精灵, 立绘."""
 
-from astrbot.api.event import AstrMessageEvent
-from astrbot.api import logger
-from astrbot.core.utils.session_waiter import session_waiter, SessionController
 import astrbot.api.message_components as Comp
+from astrbot.api import logger
+from astrbot.api.event import AstrMessageEvent
+from astrbot.core.utils.session_waiter import SessionController, session_waiter
 
+from ..core.renderer import render_to_image
+from ..data.cache import save_bytes_to_temp_file
 from ..data.db import (
-    PetORM,
     PetDataGetter,
+    PetORM,
     PetSkinDataGetter,
     db_manager,
 )
 from ..data.image_fetcher import PetBodyImageGetter
-from ..renderers.pet_info import render_pet_info_data, PET_TEMPLATE
-from ..core.renderer import render_to_image
-from ..data.cache import save_bytes_to_temp_file
+from ..renderers.pet_info import PET_TEMPLATE, render_pet_info_data
 from ._common import multi_select_query
 
 

@@ -13,31 +13,29 @@ from pathlib import Path
 from typing import Any, Final, Generic, Protocol, TypeVar
 
 import aiohttp
+from astrbot.api import logger
+from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 from pypinyin import lazy_pinyin
 from seerapi_models import (
+    BattleEffectORM,
+    ElementTypeORM,
+    EquipORM,
+    GemORM,
+    MintmarkORM,
     PetORM,
     PetSkinORM,
-    MintmarkORM,
-    GemORM,
     SuitORM,
-    EquipORM,
     TitlePartORM,
     TypeCombinationORM,
-    ElementTypeORM,
-    BattleEffectORM,
 )
 from seerapi_models.build_model import BaseResModel
 from sqlalchemy import text
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.pool import StaticPool
-from sqlmodel import Field, Session, Session as SQLModelSession, SQLModel, create_engine, select, col, func, or_, and_
-
-from astrbot.api import logger
-from astrbot.core.utils.astrbot_path import get_astrbot_data_path
-
+from sqlmodel import Field, Session, SQLModel, and_, col, create_engine, func, or_, select
+from sqlmodel import Session as SQLModelSession
 
 from ..core.type_calc import invalidate_relation_cache
-
 
 _ALIASES_DB = "aliases"
 

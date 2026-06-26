@@ -1,9 +1,10 @@
 """Misc commands: 下周预告, 开服查询, 帮助."""
 
 import re
+
+import astrbot.api.message_components as Comp
 import httpx
 from astrbot.api.event import AstrMessageEvent
-import astrbot.api.message_components as Comp
 
 
 class MiscCommands:

@@ -7,7 +7,6 @@ from collections import OrderedDict
 from collections.abc import Callable
 
 import aiohttp
-
 from astrbot.api import logger
 
 _shared_session: aiohttp.ClientSession | None = None
@@ -101,8 +100,9 @@ async def _fallback_image(error: Exception) -> bytes:
     if _fallback_cache is not None:
         return _fallback_cache
 
-    from PIL import Image, ImageDraw
     from io import BytesIO
+
+    from PIL import Image, ImageDraw
 
     img = Image.new('RGB', (300, 100), color='white')
     draw = ImageDraw.Draw(img)

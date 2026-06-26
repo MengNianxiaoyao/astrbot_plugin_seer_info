@@ -13,11 +13,11 @@ from pathlib import Path
 from typing import Any
 
 import jinja2
-from jinja2.sandbox import SandboxedEnvironment
-from playwright.async_api import async_playwright, Browser, BrowserContext, Page
-from playwright._impl._errors import TargetClosedError
-
 from astrbot.api import logger
+from jinja2.sandbox import SandboxedEnvironment
+from playwright._impl._errors import TargetClosedError
+from playwright.async_api import Browser, BrowserContext, Page, async_playwright
+
 from ..data.cache import save_bytes_to_temp_file
 
 DEFAULT_TIMEOUT = 30000

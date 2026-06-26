@@ -1,12 +1,12 @@
 """Equip commands: 套装, 部件."""
 
-from astrbot.api.event import AstrMessageEvent
 import astrbot.api.message_components as Comp
+from astrbot.api.event import AstrMessageEvent
 
-from ..data.db import SuitDataGetter, EquipDataGetter
-from ..data.image_fetcher import SuitImageGetter, EquipImageGetter
 from ..constants import EQUIP_PART_TYPE_MAP
 from ..data.cache import save_bytes_to_temp_file
+from ..data.db import EquipDataGetter, SuitDataGetter
+from ..data.image_fetcher import EquipImageGetter, SuitImageGetter
 from ._common import multi_select_query
 
 

@@ -4,7 +4,6 @@ from seerapi_models import MintmarkORM
 from seerapi_models.common import SixAttributes
 from seerapi_models.mintmark import AbilityPartORM, SkillPartORM, UniversalPartORM
 
-
 EQUIP_PART_TYPE_MAP = {
     0: "头部",
     1: "面部",

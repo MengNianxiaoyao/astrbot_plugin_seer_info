@@ -7,22 +7,20 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
-from seerapi_models import PetORM, MintmarkORM
+from astrbot.api import logger
+from seerapi_models import MintmarkORM, PetORM
 from seerapi_models.mintmark import PetMintmarkLink, SkillMintmarkLink
 from sqlalchemy.orm import object_session
 from sqlmodel import col, select
 
-from astrbot.api import logger
-
+from ..core.analyzer import parse_analyze_desc
+from ..data.cache import to_data_uri
 from ..data.image_fetcher import (
     ElementTypeImageGetter,
     MintmarkBodyImageGetter,
     PetBodyImageGetter,
     PetHeadImageGetter,
 )
-from ..core.analyzer import parse_analyze_desc
-from ..data.cache import to_data_uri
-
 
 TEMPLATE_PATH = "templates/pet_info"
 TEMPLATE_NAME = "template.html.j2"

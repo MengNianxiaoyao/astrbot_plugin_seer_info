@@ -10,7 +10,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import lru_cache
 
-
 _TAG_RE = re.compile(
     r"\[color=(#[0-9a-fA-F]{6})\]"
     r"|\[/color\]"

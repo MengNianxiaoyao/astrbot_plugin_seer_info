@@ -8,28 +8,27 @@ import asyncio
 from functools import partial
 
 import aiohttp
-
-from astrbot.api.event import filter, AstrMessageEvent
-from astrbot.api.star import Context, Star
 from astrbot.api import logger
+from astrbot.api.event import AstrMessageEvent, filter
+from astrbot.api.star import Context, Star
 
+from .commands import (
+    AttributeCommands,
+    EffectCommands,
+    EquipCommands,
+    MintmarkCommands,
+    MiscCommands,
+    PetCommands,
+    TitleCommands,
+)
+from .core.renderer import close_renderer, get_renderer
 from .data.db import (
+    cancel_sync_tasks,
     db_manager,
     register_database,
     register_local_database,
-    cancel_sync_tasks,
 )
-from .core.renderer import close_renderer, get_renderer
 from .data.image_fetcher import close_shared_session
-from .commands import (
-    PetCommands,
-    AttributeCommands,
-    EffectCommands,
-    MintmarkCommands,
-    EquipCommands,
-    TitleCommands,
-    MiscCommands,
-)
 
 
 class SeerInfoPlugin(Star):

@@ -1,12 +1,12 @@
 """Command handlers for SeerInfo plugin."""
 
-from .pet import PetCommands
 from .attribute import AttributeCommands
 from .effect import EffectCommands
-from .mintmark import MintmarkCommands
 from .equip import EquipCommands
-from .title import TitleCommands
+from .mintmark import MintmarkCommands
 from .misc import MiscCommands
+from .pet import PetCommands
+from .title import TitleCommands
 
 __all__ = [
     "PetCommands",
