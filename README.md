@@ -15,6 +15,8 @@ cd <AstrBot目录>/data/plugins
 git clone https://github.com/MengNianxiaoyao/astrbot_plugin_seer_info.git
 ```
 
+或下载 ZIP 文件并解压到 AstrBot 的插件目录下
+
 ## 命令表
 
 发送 **/帮助** 即可获取命令表
