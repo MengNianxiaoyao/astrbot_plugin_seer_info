@@ -37,11 +37,15 @@ git clone https://github.com/MengNianxiaoyao/astrbot_plugin_seer_info.git
 
 ## 说明
 
-本地渲染需要使用 [Playwright](https://playwright.dev/python/)。在 AstrBot 运行环境中执行以下命令安装浏览器：
+本地渲染需要使用 [Playwright](https://playwright.dev/python/)。
+
+在 AstrBot 运行环境中执行以下命令安装浏览器：
 
 ```bash
-playwright install chromium
+playwright install chromium --only-shell
 ```
+
+UV安装的 AstrBot需要激活虚拟环境后执行上述命令。
 
 ## 协议
 

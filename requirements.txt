@@ -1,4 +1,4 @@
 seerapi_models
 pypinyin
 jinja2
-playwright
+playwright==1.61.0
