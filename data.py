@@ -2,7 +2,7 @@ import asyncio
 import re
 import sqlite3
 import time
-from collections.abc import Callable, Generator, Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any, Final, Generic, Protocol, TypeVar
 
@@ -26,7 +26,7 @@ from seerapi_models.build_model import BaseResModel
 from sqlalchemy import text
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.pool import StaticPool
-from sqlmodel import Field, Session, SQLModel, and_, col, create_engine, func, or_, select
+from sqlmodel import Field, SQLModel, and_, col, create_engine, func, or_, select
 from sqlmodel import Session as SQLModelSession
 
 from .core.type_calc import invalidate_relation_cache
@@ -55,6 +55,7 @@ def get_plugin_db_path(db_name: str) -> str:
 class DatabaseManager:
     def __init__(self):
         self._engines: dict[str, Engine] = {}
+        self._sessions: dict[str, SQLModelSession] = {}
         self._post_load_hooks: dict[str, list[Callable]] = {}
 
     @staticmethod
@@ -99,19 +100,16 @@ class DatabaseManager:
     def get_engine(self, name: str) -> Engine | None:
         return self._engines.get(name)
 
-    def get_session(self, name: str) -> Generator[SQLModelSession, None, None] | None:
-        engine = self.get_engine(name)
+    def get_session(self, name: str) -> SQLModelSession | None:
+        engine = self._engines.get(name)
         if engine is None:
             return None
-
-        def _gen() -> Generator[SQLModelSession, None, None]:
-            with SQLModelSession(engine) as session:
-                yield session
-
-        return _gen()
+        if name not in self._sessions:
+            self._sessions[name] = SQLModelSession(engine)
+        return self._sessions[name]
 
     def get_all_sessions(self) -> dict[str, SQLModelSession]:
-        return {name: SQLModelSession(engine) for name, engine in self._engines.items()}
+        return {name: self.get_session(name) for name in self._engines}
 
     @property
     def registered_names(self) -> list[str]:
@@ -121,6 +119,9 @@ class DatabaseManager:
         return name in self._engines
 
     def dispose_all(self) -> None:
+        for s in self._sessions.values():
+            s.close()
+        self._sessions.clear()
         for name, engine in self._engines.items():
             engine.dispose()
             logger.info(f"已释放数据库引擎 '{name}'")
@@ -405,7 +406,7 @@ class Getter(Generic[_T_Model]):
         self.resolvers = resolvers
         self.filter_func = filter_func
 
-    def get(self, session: Session, id_: int) -> _T_Model | None:
+    def get(self, session: SQLModelSession, id_: int) -> _T_Model | None:
         return session.get(self.model, id_)
 
     def __call__(self, sessions: dict, arg: str) -> tuple[_T_Model, ...]:
