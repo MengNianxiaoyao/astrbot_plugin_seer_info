@@ -1,5 +1,3 @@
-"""Common query helpers for command handlers."""
-
 from collections.abc import Awaitable, Callable
 
 from astrbot.api import logger
@@ -17,17 +15,6 @@ async def multi_select_query(
     result_type: str = "chain",
     error_log_name: str = "",
 ):
-    """通用多选查询流程。
-
-    Args:
-        event: 消息事件
-        arg: 用户输入参数
-        getter: 数据获取函数，签名 (sessions, arg) -> results
-        prepare_result: 异步函数，签名 (item) -> list[Component]
-        label: 查询对象名称，如 "异常状态"、"称号"
-        result_type: 单结果返回方式，"chain" 或 "image"
-        error_log_name: 错误日志标识
-    """
     from ..data.db import db_manager
 
     if not arg.strip():

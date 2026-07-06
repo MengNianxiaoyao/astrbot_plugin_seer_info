@@ -1,22 +1,17 @@
-"""Equip commands: 套装, 部件."""
-
 import astrbot.api.message_components as Comp
 from astrbot.api.event import AstrMessageEvent
 
-from ..constants import EQUIP_PART_TYPE_MAP
+from .common_handler import multi_select_query
 from ..data.cache import save_bytes_to_temp_file
 from ..data.db import EquipDataGetter, SuitDataGetter
 from ..data.image_fetcher import EquipImageGetter, SuitImageGetter
-from ._common import multi_select_query
+from ..utils import EQUIP_PART_TYPE_MAP
 
 
-class EquipCommands:
-    """Handler for suit (套装) and equip (部件) commands."""
-
+class EquipHandler:
     @staticmethod
     def _build_suit_info(suit) -> str:
         info = f"👚【{suit.name}】（{suit.id}）\n"
-
         equips = getattr(suit, "equips", None)
         if equips:
             info += "部件：\n"
@@ -28,7 +23,6 @@ class EquipCommands:
                 if bonus and getattr(bonus, "desc", None):
                     equip_text += f"\n      效果：{bonus.desc}"
                 info += equip_text + "\n"
-
         bonus = getattr(getattr(suit, "bonus", None), "desc", None)
         info += f"套装效果：{bonus or '无'}"
         return info
@@ -40,22 +34,17 @@ class EquipCommands:
             part_type_name = EQUIP_PART_TYPE_MAP.get(part_type_id, "未知")
         else:
             part_type_name = "未知"
-
         info = f"👚【{equip.name}】（{equip.id}）\n"
         info += f"部件类型：{part_type_name}\n"
-
         suit = getattr(equip, "suit", None)
         if suit:
             info += f"所属套装：{suit.name}（{suit.id}）\n"
-
         bonus = getattr(equip, "bonus", None)
         if bonus and getattr(bonus, "desc", None):
             info += f"效果：{bonus.desc}\n"
-
         return info
 
     async def suit(self, event: AstrMessageEvent, arg: str = ""):
-        """查询套装信息"""
         async for result in multi_select_query(
             event,
             arg,
@@ -76,7 +65,6 @@ class EquipCommands:
         ]
 
     async def equip(self, event: AstrMessageEvent, arg: str = ""):
-        """查询装备部件信息"""
         async for result in multi_select_query(
             event,
             arg,

@@ -1,24 +1,19 @@
-"""Battle effect command: 异常."""
-
 import astrbot.api.message_components as Comp
 from astrbot.api.event import AstrMessageEvent
 
+from .common_handler import multi_select_query
 from ..data.cache import save_bytes_to_temp_file
 from ..data.db import BattleEffectDataGetter
 from ..data.image_fetcher import BattleEffectImageGetter
-from ._common import multi_select_query
 
 
-class EffectCommands:
-    """Handler for battle effect (异常状态) commands."""
-
+class EffectHandler:
     @staticmethod
     def _build_effect_info(effect) -> str:
         type_names = (
             ", ".join(getattr(t, "name", "") for t in getattr(effect, "type", []) or []) or "无"
         )
         resistance_name = getattr(getattr(effect, "resistance", None), "name", "无")
-
         info = (
             f"💎【{effect.name}（ID：{effect.id}）】\n"
             f"类型：{type_names}\n"
@@ -28,7 +23,6 @@ class EffectCommands:
         return info
 
     async def battle_effect(self, event: AstrMessageEvent, arg: str = ""):
-        """查询异常状态信息"""
         async for result in multi_select_query(
             event,
             arg,

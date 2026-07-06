@@ -1,17 +1,13 @@
-"""Title command: 称号."""
-
 import astrbot.api.message_components as Comp
 from astrbot.api.event import AstrMessageEvent
 
+from .common_handler import multi_select_query
 from ..data.cache import save_bytes_to_temp_file
 from ..data.db import TitleDataGetter
 from ..data.image_fetcher import TitleImageGetter
-from ._common import multi_select_query
 
 
-class TitleCommands:
-    """Handler for title (称号) commands."""
-
+class TitleHandler:
     @staticmethod
     def _build_title_info(title) -> str:
         info = f"【{title.name}】\n"
@@ -21,7 +17,6 @@ class TitleCommands:
         return info
 
     async def title_info(self, event: AstrMessageEvent, arg: str = ""):
-        """查询称号信息"""
         async for result in multi_select_query(
             event,
             arg,

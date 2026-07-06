@@ -1,17 +1,13 @@
-"""Mintmark commands: 刻印, 宝石."""
-
 import astrbot.api.message_components as Comp
 from astrbot.api.event import AstrMessageEvent
 
+from .common_handler import multi_select_query
 from ..data.cache import save_bytes_to_temp_file
 from ..data.db import GemDataGetter, MintmarkDataGetter
 from ..data.image_fetcher import MintmarkBodyImageGetter
-from ._common import multi_select_query
 
 
-class MintmarkCommands:
-    """Handler for mintmark (刻印) and gem (宝石) commands."""
-
+class MintmarkHandler:
     @staticmethod
     def _build_mintmark_info(mm) -> str:
         info = f"💎【{mm.name}】\n"
@@ -35,7 +31,6 @@ class MintmarkCommands:
         return info
 
     async def mintmark(self, event: AstrMessageEvent, arg: str = ""):
-        """查询刻印信息及数值"""
         async for result in multi_select_query(
             event,
             arg,
@@ -56,7 +51,6 @@ class MintmarkCommands:
         ]
 
     async def gem(self, event: AstrMessageEvent, arg: str = ""):
-        """查询刻印宝石信息"""
         async for result in multi_select_query(
             event,
             arg,

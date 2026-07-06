@@ -1,5 +1,3 @@
-"""Misc commands: 下周预告, 开服查询, 帮助."""
-
 import re
 
 import astrbot.api.message_components as Comp
@@ -7,11 +5,8 @@ import httpx
 from astrbot.api.event import AstrMessageEvent
 
 
-class MiscCommands:
-    """Handler for misc commands: preview, server info, help."""
-
+class MiscHandler:
     async def preview_cmd(self, event: AstrMessageEvent):
-        """获取下周预告图"""
         yield event.chain_result(
             [
                 Comp.Image.fromURL(
@@ -22,13 +17,11 @@ class MiscCommands:
         )
 
     async def server_info_cmd(self, event: AstrMessageEvent):
-        """查询服务器是否已开服"""
         try:
             async with httpx.AsyncClient() as client:
                 resp = await client.get("https://unity-notice.61.com/unity_notice/")
                 resp.raise_for_status()
                 data = resp.json()
-
             for item in data:
                 if item.get("type") == 3:
                     text = re.sub(r"<[^>]*>", "", item.get("text", ""))
@@ -40,7 +33,6 @@ class MiscCommands:
             yield event.plain_result("开服了哦~")
 
     async def help_cmd(self, event: AstrMessageEvent):
-        """显示帮助信息"""
         help_text = """🤖 赛尔号数据查询插件
 命令：
   🐱精灵相关：

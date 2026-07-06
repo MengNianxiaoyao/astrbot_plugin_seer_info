@@ -1,5 +1,3 @@
-"""Attribute type matchup command: 属性."""
-
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent
 from astrbot.core.utils.session_waiter import SessionController, session_waiter
@@ -8,16 +6,13 @@ from ..data.db import TypeCombinationDataGetter, db_manager
 from ..renderers.type_matchup import render_type_matchup
 
 
-class AttributeCommands:
-    """Handler for attribute type matchup commands."""
-
+class AttributeHandler:
     def __init__(self, html_render=None, image_format: str = "jpeg", jpeg_quality: int = 85):
         self._html_render = html_render
         self._image_format = image_format
         self._jpeg_quality = jpeg_quality
 
     async def type_matchup(self, event: AstrMessageEvent, arg: str = ""):
-        """查询属性克制表"""
         if not arg.strip():
             yield event.plain_result("❌请提供要查询的属性名称。\n用法：/属性 <属性名>")
             return

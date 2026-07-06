@@ -1,26 +1,17 @@
-"""Pet-related commands: 精灵, 立绘."""
-
 import astrbot.api.message_components as Comp
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent
 from astrbot.core.utils.session_waiter import SessionController, session_waiter
 
-from ..core.renderer import render_to_image
+from .common_handler import multi_select_query
+from .renderer import render_to_image
 from ..data.cache import save_bytes_to_temp_file
-from ..data.db import (
-    PetDataGetter,
-    PetORM,
-    PetSkinDataGetter,
-    db_manager,
-)
+from ..data.db import PetDataGetter, PetORM, PetSkinDataGetter, db_manager
 from ..data.image_fetcher import PetBodyImageGetter
 from ..renderers.pet_info import PET_TEMPLATE, render_pet_info_data
-from ._common import multi_select_query
 
 
-class PetCommands:
-    """Handler for pet-related commands."""
-
+class PetHandler:
     def __init__(self, html_render=None, image_format: str = "jpeg", jpeg_quality: int = 85):
         self._html_render = html_render
         self._image_format = image_format
@@ -37,7 +28,6 @@ class PetCommands:
         )
 
     async def pet_info(self, event: AstrMessageEvent, arg: str = ""):
-        """查询精灵基础信息"""
         if not arg.strip():
             yield event.plain_result("❌请提供要查询的精灵名称或ID。\n用法：/精灵 <名称>")
             return
@@ -106,7 +96,6 @@ class PetCommands:
             yield event.plain_result(f"发生错误: {e}")
 
     async def pet_image(self, event: AstrMessageEvent, arg: str = ""):
-        """查询精灵或皮肤立绘"""
         async for result in multi_select_query(
             event,
             arg,

@@ -14,7 +14,8 @@
   "seerapi_sync_interval_minutes": {
     "description": "SeerAPI 数据同步间隔（分钟）",
     "type": "int",
-    "default": 60
+    "default": 60,
+    "hint": "每隔多少分钟检查一次数据更新"
   },
   "alias_sync_url": {
     "description": "别名数据远程同步链接",
@@ -31,26 +32,32 @@
   "alias_sync_interval_minutes": {
     "description": "别名数据同步间隔（分钟）",
     "type": "int",
-    "default": 60
+    "default": 60,
+    "hint": "每隔多少分钟检查一次数据更新"
   },
   "render_mode": {
     "description": "图片渲染模式",
     "type": "string",
     "options": ["local", "remote"],
     "default": "local",
-    "hint": "默认本地渲染。local: 本地渲染  remote: AstrBot渲染服务"
+    "hint": "local: 本地渲染（Playwright+Jinja2） remote: AstrBot 渲染服务"
   },
   "image_format": {
     "description": "本地渲染图片格式（皮肤立绘不受影响）",
     "type": "string",
     "options": ["png", "jpeg"],
     "default": "jpeg",
-    "hint": "jpeg体积小速度快，png无损但体积大"
+    "hint": "jpeg 体积小速度快，png 无损但体积大"
   },
   "jpeg_quality": {
-    "description": "本地渲染JPEG质量",
+    "description": "本地渲染 JPEG 质量",
     "type": "int",
     "default": 85,
+    "slider": {
+      "min": 1,
+      "max": 100,
+      "step": 1
+    },
     "hint": "1-100，数值越高质量越好但文件越大"
   }
 }

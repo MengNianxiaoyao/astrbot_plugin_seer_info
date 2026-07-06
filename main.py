@@ -1,27 +1,23 @@
-"""
-AstrBot Plugin: Seer Info (赛尔号数据查询)
-
-Ported from IronsBot NoneBot2 plugin to AstrBot framework.
-"""
-
 import asyncio
 from functools import partial
 
 import aiohttp
 from astrbot.api import logger
-from astrbot.api.event import AstrMessageEvent, filter
+from astrbot.api.event import filter
 from astrbot.api.star import Context, Star
 
-from .commands import (
-    AttributeCommands,
-    EffectCommands,
-    EquipCommands,
-    MintmarkCommands,
-    MiscCommands,
-    PetCommands,
-    TitleCommands,
+from .config import PluginConfig
+from .core import (
+    AttributeHandler,
+    EffectHandler,
+    EquipHandler,
+    MintmarkHandler,
+    MiscHandler,
+    PetHandler,
+    TitleHandler,
+    close_renderer,
+    get_renderer,
 )
-from .core.renderer import close_renderer, get_renderer
 from .data.db import (
     cancel_sync_tasks,
     db_manager,
@@ -34,15 +30,10 @@ from .data.image_fetcher import close_shared_session
 class SeerInfoPlugin(Star):
     def __init__(self, context: Context, config):
         super().__init__(context)
-        self.config = config
-        self.name = "astrbot_plugin_seer_info"
-        self._is_local_render = self.config.get("render_mode", "local") == "local"
-        self._load_config()
-        self._init_commands()
-
-    def _load_config(self):
-        """从插件配置加载并初始化数据库"""
+        self.cfg = PluginConfig(config, context)
+        self._is_local_render = self.cfg.render_mode == "local"
         self._setup_databases()
+        self._init_handlers()
         if self._is_local_render:
             asyncio.create_task(self._prewarm_renderer())
 
@@ -53,11 +44,11 @@ class SeerInfoPlugin(Star):
                 return (await resp.read()).decode().strip()
 
         def _register(name: str, sync_url_key: str, fp_url_key: str, interval_key: str):
-            sync_url = self.config.get(sync_url_key, "")
+            sync_url = getattr(self.cfg, sync_url_key, "")
             if sync_url:
-                fp_url = self.config.get(fp_url_key, "")
+                fp_url = getattr(self.cfg, fp_url_key, "")
                 fp = partial(get_fingerprint, fp_url) if fp_url else None
-                interval = self.config.get(interval_key, 60)
+                interval = getattr(self.cfg, interval_key, 60)
                 register_database(
                     name,
                     sync_url=sync_url,
@@ -80,28 +71,27 @@ class SeerInfoPlugin(Star):
             "alias_sync_interval_minutes",
         )
 
-    def _init_commands(self):
+    def _init_handlers(self):
         html_render = None if self._is_local_render else self.html_render
-        image_format = self.config.get("image_format", "jpeg")
-        jpeg_quality = self.config.get("jpeg_quality", 85)
-        self._pet_cmds = PetCommands(
+        image_format = self.cfg.image_format
+        jpeg_quality = self.cfg.jpeg_quality
+        self._pet_handler = PetHandler(
             html_render=html_render,
             image_format=image_format,
             jpeg_quality=jpeg_quality,
         )
-        self._attr_cmds = AttributeCommands(
+        self._attr_handler = AttributeHandler(
             html_render=html_render,
             image_format=image_format,
             jpeg_quality=jpeg_quality,
         )
-        self._effect_cmds = EffectCommands()
-        self._mintmark_cmds = MintmarkCommands()
-        self._equip_cmds = EquipCommands()
-        self._title_cmds = TitleCommands()
-        self._misc_cmds = MiscCommands()
+        self._effect_handler = EffectHandler()
+        self._mintmark_handler = MintmarkHandler()
+        self._equip_handler = EquipHandler()
+        self._title_handler = TitleHandler()
+        self._misc_handler = MiscHandler()
 
     async def _prewarm_renderer(self):
-        """后台预热 Playwright 浏览器"""
         try:
             renderer = await get_renderer()
             await renderer.prewarm()
@@ -122,8 +112,8 @@ class SeerInfoPlugin(Star):
         desc="查询精灵基础信息",
         ignore_prefix=True,
     )
-    async def pet_info(self, event: AstrMessageEvent, arg: str = ""):
-        async for result in self._pet_cmds.pet_info(event, arg):
+    async def pet_info(self, event, arg: str = ""):
+        async for result in self._pet_handler.pet_info(event, arg):
             yield result
 
     @filter.command(
@@ -132,13 +122,13 @@ class SeerInfoPlugin(Star):
         desc="查询精灵或皮肤立绘",
         ignore_prefix=True,
     )
-    async def pet_image(self, event: AstrMessageEvent, arg: str = ""):
-        async for result in self._pet_cmds.pet_image(event, arg):
+    async def pet_image(self, event, arg: str = ""):
+        async for result in self._pet_handler.pet_image(event, arg):
             yield result
 
     @filter.command("属性", alias={"属性表"}, desc="查询属性克制表", ignore_prefix=True)
-    async def type_matchup(self, event: AstrMessageEvent, arg: str = ""):
-        async for result in self._attr_cmds.type_matchup(event, arg):
+    async def type_matchup(self, event, arg: str = ""):
+        async for result in self._attr_handler.type_matchup(event, arg):
             yield result
 
     @filter.command(
@@ -147,46 +137,46 @@ class SeerInfoPlugin(Star):
         desc="查询异常状态信息",
         ignore_prefix=True,
     )
-    async def battle_effect(self, event: AstrMessageEvent, arg: str = ""):
-        async for result in self._effect_cmds.battle_effect(event, arg):
+    async def battle_effect(self, event, arg: str = ""):
+        async for result in self._effect_handler.battle_effect(event, arg):
             yield result
 
     @filter.command("刻印", desc="查询刻印信息及数值", ignore_prefix=True)
-    async def mintmark(self, event: AstrMessageEvent, arg: str = ""):
-        async for result in self._mintmark_cmds.mintmark(event, arg):
+    async def mintmark(self, event, arg: str = ""):
+        async for result in self._mintmark_handler.mintmark(event, arg):
             yield result
 
     @filter.command("宝石", alias={"刻印宝石"}, desc="查询刻印宝石信息", ignore_prefix=True)
-    async def gem(self, event: AstrMessageEvent, arg: str = ""):
-        async for result in self._mintmark_cmds.gem(event, arg):
+    async def gem(self, event, arg: str = ""):
+        async for result in self._mintmark_handler.gem(event, arg):
             yield result
 
     @filter.command("套装", alias={"查询套装信息"}, desc="查询套装信息", ignore_prefix=True)
-    async def suit(self, event: AstrMessageEvent, arg: str = ""):
-        async for result in self._equip_cmds.suit(event, arg):
+    async def suit(self, event, arg: str = ""):
+        async for result in self._equip_handler.suit(event, arg):
             yield result
 
     @filter.command("部件", alias={"查询部件信息"}, desc="查询装备部件信息", ignore_prefix=True)
-    async def equip(self, event: AstrMessageEvent, arg: str = ""):
-        async for result in self._equip_cmds.equip(event, arg):
+    async def equip(self, event, arg: str = ""):
+        async for result in self._equip_handler.equip(event, arg):
             yield result
 
     @filter.command("称号", alias={"查询称号信息"}, desc="查询称号信息", ignore_prefix=True)
-    async def title_info(self, event: AstrMessageEvent, arg: str = ""):
-        async for result in self._title_cmds.title_info(event, arg):
+    async def title_info(self, event, arg: str = ""):
+        async for result in self._title_handler.title_info(event, arg):
             yield result
 
     @filter.command("下周预告", alias={"预告"}, desc="获取下周预告图", ignore_prefix=True)
-    async def preview_cmd(self, event: AstrMessageEvent):
-        async for result in self._misc_cmds.preview_cmd(event):
+    async def preview_cmd(self, event):
+        async for result in self._misc_handler.preview_cmd(event):
             yield result
 
     @filter.command("开服查询", alias={"开服了吗"}, desc="查询服务器是否已开服", ignore_prefix=True)
-    async def server_info_cmd(self, event: AstrMessageEvent):
-        async for result in self._misc_cmds.server_info_cmd(event):
+    async def server_info_cmd(self, event):
+        async for result in self._misc_handler.server_info_cmd(event):
             yield result
 
     @filter.command("帮助", desc="显示帮助信息", ignore_prefix=True)
-    async def help_cmd(self, event: AstrMessageEvent):
-        async for result in self._misc_cmds.help_cmd(event):
+    async def help_cmd(self, event):
+        async for result in self._misc_handler.help_cmd(event):
             yield result
