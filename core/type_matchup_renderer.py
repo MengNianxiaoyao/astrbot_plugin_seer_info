@@ -4,10 +4,10 @@ from typing import Any
 from astrbot.api import logger
 from seerapi_models import TypeCombinationORM
 
-from .renderer import get_template_content, render_to_image
-from .type_calc import calc_attack_table, calc_defense_table
 from ..data import db_manager
 from ..service import ElementTypeImageGetter, to_data_uri
+from .renderer import get_template_content, render_to_image
+from .type_calc import calc_attack_table, calc_defense_table
 
 TYPE_MATCHUP_TEMPLATE = get_template_content("type_matchup/template.html.j2")
 

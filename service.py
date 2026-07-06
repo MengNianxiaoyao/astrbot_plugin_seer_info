@@ -5,7 +5,6 @@ from collections import OrderedDict
 from collections.abc import Callable
 from io import BytesIO
 from pathlib import Path
-from typing import Any
 
 import aiohttp
 from astrbot.api import logger

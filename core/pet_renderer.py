@@ -8,8 +8,6 @@ from seerapi_models.mintmark import PetMintmarkLink, SkillMintmarkLink
 from sqlalchemy.orm import object_session
 from sqlmodel import col, select
 
-from .analyzer import parse_analyze_desc
-from .renderer import get_template_content
 from ..service import (
     ElementTypeImageGetter,
     MintmarkBodyImageGetter,
@@ -17,6 +15,8 @@ from ..service import (
     PetHeadImageGetter,
     to_data_uri,
 )
+from .analyzer import parse_analyze_desc
+from .renderer import get_template_content
 
 PET_TEMPLATE = get_template_content("pet_info/template.html.j2")
 

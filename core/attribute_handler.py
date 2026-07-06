@@ -2,8 +2,8 @@ from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent
 from astrbot.core.utils.session_waiter import SessionController, session_waiter
 
-from .type_matchup_renderer import render_type_matchup
 from ..data import TypeCombinationDataGetter, db_manager
+from .type_matchup_renderer import render_type_matchup
 
 
 class AttributeHandler:
