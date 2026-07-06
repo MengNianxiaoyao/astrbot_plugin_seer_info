@@ -1,11 +1,11 @@
 import astrbot.api.message_components as Comp
 from astrbot.api.event import AstrMessageEvent
 
-from .common_handler import multi_select_query
 from ..data.cache import save_bytes_to_temp_file
 from ..data.db import EquipDataGetter, SuitDataGetter
 from ..data.image_fetcher import EquipImageGetter, SuitImageGetter
 from ..utils import EQUIP_PART_TYPE_MAP
+from .common_handler import multi_select_query
 
 
 class EquipHandler:
