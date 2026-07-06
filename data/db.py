@@ -223,7 +223,9 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
                 try:
                     remote_fingerprint = await get_fingerprint(session)
                 except Exception as e:
-                    logger.warning(f"指纹检查失败: {e}，跳过本次更新")
+                    logger.warning(f"数据库 '{name}' 指纹检查失败: {e}，尝试使用本地数据")
+                    if not db_manager.is_database_loaded(name):
+                        db_manager.load_from_file(name, plugin_db_path)
                     return
 
                 local_fingerprint = None
@@ -240,7 +242,7 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
                         db_manager.load_from_file(name, plugin_db_path)
                     return
 
-            logger.info(f"开始从 {sync_url} 下载数据库 '{name}'...")
+            logger.info(f"开始下载数据库 '{name}'...")
             async with session.get(sync_url, allow_redirects=True) as resp:
                 resp.raise_for_status()
                 data = await resp.read()
