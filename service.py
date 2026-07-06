@@ -1,18 +1,86 @@
-"""
-Image fetching dependencies for SeerInfo plugin.
-"""
-
 import asyncio
+import base64
+import zlib
 from collections import OrderedDict
 from collections.abc import Callable
+from io import BytesIO
+from pathlib import Path
+from typing import Any
 
 import aiohttp
 from astrbot.api import logger
+from astrbot.core.utils.astrbot_path import get_astrbot_data_path
+from PIL import Image, ImageDraw
+
+_cache_dir: Path | None = None
+_temp_file_cache: dict[str, str] = {}
+_IMAGE_FORMATS: dict[bytes, tuple[str, str]] = {
+    b"\x89PNG": ("image/png", ".png"),
+    b"\xff\xd8\xff": ("image/jpeg", ".jpeg"),
+}
 
 _shared_session: aiohttp.ClientSession | None = None
 _session_lock = asyncio.Lock()
-_image_cache: OrderedDict[str, bytes] = OrderedDict()  # url -> image bytes, LRU cache
-_MAX_CACHE_SIZE = 128
+_image_cache: OrderedDict[str, bytes] = OrderedDict()
+_MAX_IMAGE_CACHE = 128
+_fallback_cache: bytes | None = None
+
+
+def _get_cache_dir() -> Path:
+    global _cache_dir
+    if _cache_dir is None:
+        _cache_dir = (
+            Path(get_astrbot_data_path())
+            / "plugin_data"
+            / "astrbot_plugin_seer_info"
+            / "image_cache"
+        )
+        _cache_dir.mkdir(parents=True, exist_ok=True)
+    return _cache_dir
+
+
+def _fast_fingerprint(data: bytes) -> str:
+    size = len(data)
+    if size <= 4096:
+        crc = zlib.crc32(data)
+    else:
+        crc = zlib.crc32(data[:2048])
+        crc = zlib.crc32(data[-2048:], crc)
+    return f"{crc & 0xFFFFFFFF:08x}{size:08x}"
+
+
+def _detect_image_format(data: bytes) -> tuple[str, str]:
+    for magic, fmt in _IMAGE_FORMATS.items():
+        if data[: len(magic)] == magic:
+            return fmt
+    return "image/jpeg", ".jpeg"
+
+
+def to_data_uri(data: bytes, mime_type: str | None = None) -> str:
+    if mime_type is None:
+        mime_type, _ = _detect_image_format(data)
+    b64 = base64.b64encode(data)
+    return f"data:{mime_type};base64,{b64.decode()}"
+
+
+def save_bytes_to_temp_file(image_bytes: bytes, suffix: str | None = None) -> str:
+    if suffix is None:
+        _, suffix = _detect_image_format(image_bytes)
+    key = _fast_fingerprint(image_bytes)
+    cached = _temp_file_cache.get(key)
+    if cached and Path(cached).exists():
+        logger.info(f"图片缓存命中: {Path(cached).name}")
+        return cached
+    filename = key[:16] + suffix
+    path = _get_cache_dir() / filename
+    if path.exists():
+        _temp_file_cache[key] = str(path)
+        logger.info(f"图片缓存命中: {filename}")
+        return str(path)
+    path.write_bytes(image_bytes)
+    _temp_file_cache[key] = str(path)
+    logger.info(f"图片缓存创建: {filename} ({len(image_bytes) / (1024 * 1024):.2f} MB)")
+    return str(path)
 
 
 async def _get_shared_session() -> aiohttp.ClientSession:
@@ -36,7 +104,10 @@ async def close_shared_session():
         logger.info("已关闭共享的 HTTP 会话")
         _shared_session = None
     _image_cache.clear()
-    logger.info("已清除图片缓存")
+    _temp_file_cache.clear()
+    global _fallback_cache
+    _fallback_cache = None
+    logger.info("已清除资源缓存")
 
 
 class GetImage:
@@ -44,12 +115,9 @@ class GetImage:
         self,
         *url_templates: str,
         fallback: Callable | None = None,
-        client_getter: Callable | None = None,
     ):
         if not url_templates:
             raise ValueError("至少需要一个 URL 模板")
-
-        self._client_getter = client_getter
         self.url_templates = url_templates
         self.fallback = fallback
 
@@ -67,7 +135,7 @@ class GetImage:
                     response.raise_for_status()
                     data = await response.read()
                     _image_cache[url] = data
-                    if len(_image_cache) > _MAX_CACHE_SIZE:
+                    if len(_image_cache) > _MAX_IMAGE_CACHE:
                         _image_cache.popitem(last=False)
                     return data
             except Exception as e:
@@ -100,10 +168,6 @@ async def _fallback_image(error: Exception) -> bytes:
     if _fallback_cache is not None:
         return _fallback_cache
 
-    from io import BytesIO
-
-    from PIL import Image, ImageDraw
-
     img = Image.new("RGB", (300, 100), color="white")
     draw = ImageDraw.Draw(img)
     draw.text((10, 40), "获取图片失败！", fill="red")
@@ -112,9 +176,6 @@ async def _fallback_image(error: Exception) -> bytes:
     img.save(buffer, format="PNG")
     _fallback_cache = buffer.getvalue()
     return _fallback_cache
-
-
-_fallback_cache: bytes | None = None
 
 
 PetBodyImageGetter = GetImage(

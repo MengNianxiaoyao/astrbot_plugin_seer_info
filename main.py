@@ -3,7 +3,7 @@ from functools import partial
 
 import aiohttp
 from astrbot.api import logger
-from astrbot.api.event import filter
+from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star
 
 from .config import PluginConfig
@@ -18,13 +18,13 @@ from .core import (
     close_renderer,
     get_renderer,
 )
-from .data.db import (
+from .data import (
     cancel_sync_tasks,
     db_manager,
     register_database,
     register_local_database,
 )
-from .data.image_fetcher import close_shared_session
+from .service import close_shared_session
 
 
 class SeerInfoPlugin(Star):
@@ -112,7 +112,7 @@ class SeerInfoPlugin(Star):
         desc="查询精灵基础信息",
         ignore_prefix=True,
     )
-    async def pet_info(self, event, arg: str = ""):
+    async def pet_info(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._pet_handler.pet_info(event, arg):
             yield result
 
@@ -122,12 +122,12 @@ class SeerInfoPlugin(Star):
         desc="查询精灵或皮肤立绘",
         ignore_prefix=True,
     )
-    async def pet_image(self, event, arg: str = ""):
+    async def pet_image(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._pet_handler.pet_image(event, arg):
             yield result
 
     @filter.command("属性", alias={"属性表"}, desc="查询属性克制表", ignore_prefix=True)
-    async def type_matchup(self, event, arg: str = ""):
+    async def type_matchup(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._attr_handler.type_matchup(event, arg):
             yield result
 
@@ -137,46 +137,46 @@ class SeerInfoPlugin(Star):
         desc="查询异常状态信息",
         ignore_prefix=True,
     )
-    async def battle_effect(self, event, arg: str = ""):
+    async def battle_effect(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._effect_handler.battle_effect(event, arg):
             yield result
 
     @filter.command("刻印", desc="查询刻印信息及数值", ignore_prefix=True)
-    async def mintmark(self, event, arg: str = ""):
+    async def mintmark(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._mintmark_handler.mintmark(event, arg):
             yield result
 
     @filter.command("宝石", alias={"刻印宝石"}, desc="查询刻印宝石信息", ignore_prefix=True)
-    async def gem(self, event, arg: str = ""):
+    async def gem(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._mintmark_handler.gem(event, arg):
             yield result
 
     @filter.command("套装", alias={"查询套装信息"}, desc="查询套装信息", ignore_prefix=True)
-    async def suit(self, event, arg: str = ""):
+    async def suit(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._equip_handler.suit(event, arg):
             yield result
 
     @filter.command("部件", alias={"查询部件信息"}, desc="查询装备部件信息", ignore_prefix=True)
-    async def equip(self, event, arg: str = ""):
+    async def equip(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._equip_handler.equip(event, arg):
             yield result
 
     @filter.command("称号", alias={"查询称号信息"}, desc="查询称号信息", ignore_prefix=True)
-    async def title_info(self, event, arg: str = ""):
+    async def title_info(self, event: AstrMessageEvent, arg: str = ""):
         async for result in self._title_handler.title_info(event, arg):
             yield result
 
     @filter.command("下周预告", alias={"预告"}, desc="获取下周预告图", ignore_prefix=True)
-    async def preview_cmd(self, event):
+    async def preview_cmd(self, event: AstrMessageEvent):
         async for result in self._misc_handler.preview_cmd(event):
             yield result
 
     @filter.command("开服查询", alias={"开服了吗"}, desc="查询服务器是否已开服", ignore_prefix=True)
-    async def server_info_cmd(self, event):
+    async def server_info_cmd(self, event: AstrMessageEvent):
         async for result in self._misc_handler.server_info_cmd(event):
             yield result
 
     @filter.command("帮助", desc="显示帮助信息", ignore_prefix=True)
-    async def help_cmd(self, event):
+    async def help_cmd(self, event: AstrMessageEvent):
         async for result in self._misc_handler.help_cmd(event):
             yield result

@@ -1,8 +1,3 @@
-"""
-Pet info renderer for SeerInfo plugin.
-Uses Jinja2 templates with local Playwright rendering.
-"""
-
 import asyncio
 from pathlib import Path
 from typing import Any
@@ -13,25 +8,20 @@ from seerapi_models.mintmark import PetMintmarkLink, SkillMintmarkLink
 from sqlalchemy.orm import object_session
 from sqlmodel import col, select
 
-from ..core.analyzer import parse_analyze_desc
-from ..data.cache import to_data_uri
-from ..data.image_fetcher import (
+from .analyzer import parse_analyze_desc
+from .renderer import get_template_content
+from ..service import (
     ElementTypeImageGetter,
     MintmarkBodyImageGetter,
     PetBodyImageGetter,
     PetHeadImageGetter,
+    to_data_uri,
 )
 
-TEMPLATE_PATH = "templates/pet_info"
-TEMPLATE_NAME = "template.html.j2"
-
-PET_TEMPLATE = (Path(__file__).parent.parent / TEMPLATE_PATH / TEMPLATE_NAME).read_text(
-    encoding="utf-8"
-)
+PET_TEMPLATE = get_template_content("pet_info/template.html.j2")
 
 
 def _extract_skill(skill_in_pet) -> list[dict[str, Any]]:
-    """提取单个技能链接的技能数据，支持好友技能"""
     skill = skill_in_pet.skill
     if not skill or getattr(skill, "id", 0) == 19002:
         return []
@@ -96,7 +86,6 @@ def _extract_skill(skill_in_pet) -> list[dict[str, Any]]:
 
 
 def _extract_soulmark(soulmarks: list, pet: PetORM) -> list[dict[str, Any]]:
-    """提取魂印数据"""
     results = []
     for sm in soulmarks:
         sm_desc = getattr(sm, "analyze_desc", "") or getattr(sm, "desc", "")
@@ -312,5 +301,4 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
 
 
 async def render_pet_info_data(pet: PetORM) -> dict[str, Any]:
-    """Build render data dictionary for pet info card (async)."""
     return await _build_pet_render_data(pet)

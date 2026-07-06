@@ -1,28 +1,18 @@
-"""Render type matchup chart using HTML template."""
-
 import asyncio
-from pathlib import Path
 from typing import Any
 
 from astrbot.api import logger
 from seerapi_models import TypeCombinationORM
 
-from ..core.renderer import render_to_image
-from ..core.type_calc import calc_attack_table, calc_defense_table
-from ..data.cache import to_data_uri
-from ..data.db import db_manager
-from ..data.image_fetcher import ElementTypeImageGetter
+from .renderer import get_template_content, render_to_image
+from .type_calc import calc_attack_table, calc_defense_table
+from ..data import db_manager
+from ..service import ElementTypeImageGetter, to_data_uri
 
-TEMPLATE_PATH = "templates/type_matchup"
-TEMPLATE_NAME = "template.html.j2"
-
-TYPE_MATCHUP_TEMPLATE = (Path(__file__).parent.parent / TEMPLATE_PATH / TEMPLATE_NAME).read_text(
-    encoding="utf-8"
-)
+TYPE_MATCHUP_TEMPLATE = get_template_content("type_matchup/template.html.j2")
 
 
 async def build_type_matchup_render_data(type_combo: TypeCombinationORM) -> dict[str, Any]:
-    """Build render data for type matchup chart."""
     sessions = db_manager.get_all_sessions()
     session = sessions.get("seerapi")
     if not session:
@@ -105,17 +95,6 @@ async def render_type_matchup(
     image_format: str = "jpeg",
     jpeg_quality: int = 85,
 ) -> str:
-    """Render type matchup chart to image.
-
-    Args:
-        type_combo: The TypeCombinationORM object
-        html_render: AstrBot's html_render function (None for local rendering)
-        image_format: Image output format (jpeg or png)
-        jpeg_quality: JPEG quality (1-100)
-
-    Returns:
-        Path to the rendered image file
-    """
     render_data = await build_type_matchup_render_data(type_combo)
     return await render_to_image(
         TYPE_MATCHUP_TEMPLATE,

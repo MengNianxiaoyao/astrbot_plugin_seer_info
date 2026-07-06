@@ -1,9 +1,3 @@
-"""
-Database dependencies for SeerInfo plugin.
-
-Simplified from IronsBot's db_sync system for AstrBot.
-"""
-
 import asyncio
 import re
 import sqlite3
@@ -35,7 +29,7 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Field, Session, SQLModel, and_, col, create_engine, func, or_, select
 from sqlmodel import Session as SQLModelSession
 
-from ..core.type_calc import invalidate_relation_cache
+from .core.type_calc import invalidate_relation_cache
 
 _ALIASES_DB = "aliases"
 
@@ -53,29 +47,18 @@ class AliasModelProtocol(Protocol):
 
 
 def get_plugin_db_path(db_name: str) -> str:
-    """获取插件数据库文件的默认路径。
-
-    返回: data/plugin_data/astrbot_plugin_seer_info/{db_name}.sqlite
-    """
     plugin_data_path = Path(get_astrbot_data_path()) / "plugin_data" / "astrbot_plugin_seer_info"
     plugin_data_path.mkdir(parents=True, exist_ok=True)
     return str(plugin_data_path / f"{db_name}.sqlite")
 
 
 class DatabaseManager:
-    """管理多个命名内存数据库引擎的管理器。
-
-    每个数据库通过唯一的名称标识，数据存储在内存中，
-    通过从远程 SQLite 文件导入数据来更新。
-    """
-
     def __init__(self):
         self._engines: dict[str, Engine] = {}
         self._post_load_hooks: dict[str, list[Callable]] = {}
 
     @staticmethod
     def _create_memory_engine() -> Engine:
-        """创建一个共享连接的内存 SQLite 引擎。"""
         engine = create_engine(
             "sqlite://",
             connect_args={"check_same_thread": False},
@@ -85,13 +68,10 @@ class DatabaseManager:
         return engine
 
     def register_post_load_hook(self, name: str, hook: Callable[[Engine], None]) -> None:
-        """注册一个在数据库从文件加载到内存后执行的钩子。"""
         self._post_load_hooks.setdefault(name, []).append(hook)
 
     def load_from_file(self, name: str, file_path: str) -> None:
-        """从 SQLite 文件导入全部数据到新的内存引擎，然后原子替换旧引擎。"""
         new_engine = self._create_memory_engine()
-
         source = sqlite3.connect(file_path)
         try:
             raw_conn = new_engine.raw_connection()
@@ -117,11 +97,9 @@ class DatabaseManager:
         logger.info(f"已从文件导入数据到内存数据库 '{name}'")
 
     def get_engine(self, name: str) -> Engine | None:
-        """获取指定名称的数据库引擎。"""
         return self._engines.get(name)
 
     def get_session(self, name: str) -> Generator[SQLModelSession, None, None] | None:
-        """获取指定数据库的会话生成器。"""
         engine = self.get_engine(name)
         if engine is None:
             return None
@@ -133,20 +111,16 @@ class DatabaseManager:
         return _gen()
 
     def get_all_sessions(self) -> dict[str, SQLModelSession]:
-        """创建所有已注册数据库的会话字典。"""
         return {name: SQLModelSession(engine) for name, engine in self._engines.items()}
 
     @property
     def registered_names(self) -> list[str]:
-        """获取所有已注册的数据库名称。"""
         return list(self._engines.keys())
 
     def is_database_loaded(self, name: str) -> bool:
-        """检查数据库是否已加载（有实际数据）。"""
         return name in self._engines
 
     def dispose_all(self) -> None:
-        """释放所有引擎的连接池。"""
         for name, engine in self._engines.items():
             engine.dispose()
             logger.info(f"已释放数据库引擎 '{name}'")
@@ -181,7 +155,6 @@ def register_database(
 
 
 async def cancel_sync_tasks() -> None:
-    """取消所有同步任务并等待完成。"""
     tasks = list(_sync_tasks.values())
     _sync_tasks.clear()
     if not tasks:
@@ -191,20 +164,13 @@ async def cancel_sync_tasks() -> None:
         task.cancel()
     if pending:
         await asyncio.gather(*pending, return_exceptions=True)
-    cancelled = sum(1 for t in tasks if t.cancelled())
-    logger.info(f"已取消 {cancelled}/{len(tasks)} 个数据库同步任务")
 
 
 def register_local_database(name: str):
-    """注册本地数据库文件，使用默认路径：
-    data/plugin_data/{plugin_name}/{name}.sqlite
-    """
     file_path = get_plugin_db_path(name)
-
     if not Path(file_path).exists():
         logger.warning(f"本地文件 '{file_path}' 不存在，跳过注册 {name}")
         return
-
     db_manager.load_from_file(name, file_path)
 
 
@@ -231,8 +197,8 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
                 local_fingerprint = None
                 sha256_exists = await asyncio.to_thread(Path(sha256_path).exists)
                 if sha256_exists:
-                    text = await asyncio.to_thread(Path(sha256_path).read_text)
-                    local_fingerprint = text.strip()
+                    text_data = await asyncio.to_thread(Path(sha256_path).read_text)
+                    local_fingerprint = text_data.strip()
 
                 if remote_fingerprint and remote_fingerprint == local_fingerprint:
                     if db_manager.is_database_loaded(name):
@@ -247,27 +213,18 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
                 resp.raise_for_status()
                 data = await resp.read()
 
-            await asyncio.to_thread(
-                plugin_db_file.parent.mkdir,
-                parents=True,
-                exist_ok=True,
-            )
+            await asyncio.to_thread(plugin_db_file.parent.mkdir, parents=True, exist_ok=True)
             await asyncio.to_thread(plugin_db_file.write_bytes, data)
 
             if get_fingerprint:
                 try:
                     remote_fp = await get_fingerprint(session)
-                    await asyncio.to_thread(
-                        Path(sha256_path).write_text,
-                        remote_fp.strip(),
-                    )
+                    await asyncio.to_thread(Path(sha256_path).write_text, remote_fp.strip())
                     logger.info(f"已保存指纹: {remote_fp.strip()}")
                 except Exception as e:
                     logger.warning(f"保存指纹失败: {e}")
 
-            size_mb = len(data) / (1024 * 1024)
-            logger.info(f"数据库 '{name}' 已下载，大小: {size_mb:.2f} MB")
-
+            logger.info(f"数据库 '{name}' 已下载，大小: {len(data) / (1024 * 1024):.2f} MB")
             db_manager.load_from_file(name, plugin_db_path)
 
     except asyncio.CancelledError:
@@ -285,8 +242,6 @@ def _strip_special(text: str) -> str:
 
 
 def _register_strip_func(engine: Engine) -> None:
-    """注册 SQLite 自定义函数，单次调用完成字符替换，避免 13 层嵌套 REPLACE。"""
-
     def _sqlite_strip(text):
         if text is None:
             return None
@@ -338,11 +293,9 @@ class NameResolver(Generic[_T_Model]):
     def __call__(self, sessions: dict, arg: str) -> Iterable[_T_Model]:
         if not self.name_column:
             return ()
-
         session = sessions.get(self.db_name)
         if session is None:
             return ()
-
         stripped_arg = _strip_special(arg)
         statement = select(self.model).where(
             _col_strip_special(col(self.name_column)).like(f"%{stripped_arg}%")
@@ -368,7 +321,6 @@ class AliasResolver(Generic[_T_Model]):
         alias_session = sessions.get(self.alias_db)
         if alias_session is None:
             return ()
-
         stripped_arg = _strip_special(arg)
         try:
             statement = select(self.alias_model).where(
@@ -378,14 +330,11 @@ class AliasResolver(Generic[_T_Model]):
             ids = {alias.target_id for alias in aliases}
         except Exception:
             return ()
-
         if not ids:
             return ()
-
         data_session = sessions.get(self.data_db)
         if data_session is None:
             return ()
-
         return data_session.exec(select(self.model).where(col(self.model.id).in_(ids))).all()
 
 
@@ -397,11 +346,8 @@ _PINYIN_FTS_SOURCES: dict[str, str] = {
 
 
 class PinyinResolver(Generic[_T_Model]):
-    """通过汉语拼音（全拼或首字母）搜索模型对象，基于 FTS5 索引。"""
-
     @staticmethod
     def _to_pinyin_needle(arg: str) -> tuple[str, list[str] | None] | None:
-        """将用户输入转换为拼音搜索字符串。"""
         stripped = _strip_special(arg)
         if stripped.isascii():
             if not stripped.isalpha():
@@ -427,11 +373,9 @@ class PinyinResolver(Generic[_T_Model]):
         if not needle_data:
             return ()
         needle, input_syllables = needle_data
-
         session = sessions.get(self.db_name)
         if session is None:
             return ()
-
         try:
             with session.connection().engine.connect() as conn:
                 result = conn.execute(
@@ -445,10 +389,8 @@ class PinyinResolver(Generic[_T_Model]):
                 rowids = [row[0] for row in result.fetchall()]
         except Exception:
             return ()
-
         if not rowids:
             return ()
-
         return session.exec(select(self.model).where(col(self.model.id).in_(rowids))).all()
 
 
@@ -469,12 +411,10 @@ class Getter(Generic[_T_Model]):
     def __call__(self, sessions: dict, arg: str) -> tuple[_T_Model, ...]:
         if not arg:
             return ()
-
         seen: dict[int, _T_Model] = {}
         for resolver in self.resolvers:
             for obj in resolver(sessions, arg):
                 seen.setdefault(obj.id, obj)
-
         results = tuple(seen.values())
         if self.filter_func:
             results = tuple(obj for obj in results if self.filter_func(obj))
@@ -523,11 +463,6 @@ EquipDataGetter = Getter(
 
 
 class TypeCombinationResolver:
-    """将用户输入拆分为单属性名，再按 ID 组合查询 TypeCombinationORM。
-
-    支持任意顺序输入：如 "火战斗" 和 "战斗火" 都能匹配到同一条双属性记录。
-    """
-
     def __init__(self, *, db_name: str = "seerapi"):
         self.db_name = db_name
 
@@ -536,14 +471,11 @@ class TypeCombinationResolver:
         if session is None:
             logger.warning("TypeCombinationResolver: 未找到数据库会话")
             return ()
-
         stripped = _strip_special(arg)
         if not stripped:
             return ()
-
         all_types = session.exec(select(ElementTypeORM)).all()
         name_to_id: dict[str, int] = {t.name: t.id for t in all_types}
-
         if stripped in name_to_id:
             tid = name_to_id[stripped]
             results = list(
@@ -556,7 +488,6 @@ class TypeCombinationResolver:
             )
             if results:
                 return results
-
         found: dict[int, TypeCombinationORM] = {}
         for i in range(1, len(stripped)):
             left, right = stripped[:i], stripped[i:]
@@ -579,7 +510,6 @@ class TypeCombinationResolver:
             ).all()
             for combo in combos:
                 found.setdefault(combo.id, combo)
-
         return tuple(found.values())
 
 
@@ -631,8 +561,7 @@ def _build_pinyin_fts(engine: Engine) -> None:
                         conn.execute(
                             text(
                                 f"INSERT INTO [{_PINYIN_FTS_TABLE}]"
-                                " (rowid, source_table,"
-                                " pinyin_full, pinyin_initials)"
+                                " (rowid, source_table, pinyin_full, pinyin_initials)"
                                 " VALUES (:rowid, :src, :full, :initials)"
                             ),
                             {

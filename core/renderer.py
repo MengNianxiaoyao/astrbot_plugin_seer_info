@@ -1,12 +1,3 @@
-"""
-Local HTML rendering for SeerInfo plugin.
-
-Uses Jinja2 for template rendering and Playwright for HTML to image conversion.
-This avoids relying on AstrBot's remote html_render API.
-
-Reference: https://github.com/AstrBotDevs/astrbot-t2i-service
-"""
-
 import asyncio
 from collections import OrderedDict
 from pathlib import Path
@@ -18,15 +9,48 @@ from jinja2.sandbox import SandboxedEnvironment
 from playwright._impl._errors import TargetClosedError
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
-from ..data.cache import save_bytes_to_temp_file
+from ..service import save_bytes_to_temp_file
 
 DEFAULT_TIMEOUT = 30000
 DEFAULT_VIEWPORT_WIDTH = 1200
 
+_TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+
+
+class TemplateCache:
+    _file_cache: OrderedDict[str, str] = OrderedDict()
+    _compiled_cache: OrderedDict[str, jinja2.Template] = OrderedDict()
+    _MAX_FILE_CACHE = 32
+    _MAX_COMPILED_CACHE = 32
+
+    @classmethod
+    def get_content(cls, relative_path: str) -> str:
+        relative_path = relative_path.replace("/", "\\")
+        cached = cls._file_cache.get(relative_path)
+        if cached is not None:
+            cls._file_cache.move_to_end(relative_path)
+            return cached
+        full_path = _TEMPLATES_DIR / relative_path
+        content = full_path.read_text(encoding="utf-8")
+        cls._file_cache[relative_path] = content
+        if len(cls._file_cache) > cls._MAX_FILE_CACHE:
+            cls._file_cache.popitem(last=False)
+        return content
+
+    @classmethod
+    def compile_string(cls, env: SandboxedEnvironment, template_string: str) -> jinja2.Template:
+        cached = cls._compiled_cache.get(template_string)
+        if cached is not None:
+            cls._compiled_cache.move_to_end(template_string)
+            return cached
+        template = env.from_string(template_string)
+        cls._compiled_cache[template_string] = template
+        if len(cls._compiled_cache) > cls._MAX_COMPILED_CACHE:
+            cls._compiled_cache.popitem(last=False)
+        return template
+
 
 class LocalRenderer:
-    """Local HTML renderer using Jinja2 + Playwright."""
-
     def __init__(self, page_pool_size: int = 4):
         self._playwright = None
         self._browser: Browser | None = None
@@ -34,20 +58,12 @@ class LocalRenderer:
         self._page_pool: asyncio.Queue[Page] = asyncio.Queue(maxsize=page_pool_size)
         self._page_pool_size = page_pool_size
         self._env = SandboxedEnvironment(
-            loader=jinja2.FileSystemLoader(str(self._get_templates_dir())),
+            loader=jinja2.FileSystemLoader(str(_TEMPLATES_DIR)),
             autoescape=jinja2.select_autoescape(["html", "xml"]),
             keep_trailing_newline=True,
         )
-        self._string_template_cache: OrderedDict[str, jinja2.Template] = OrderedDict()
-        self._MAX_TEMPLATE_CACHE = 16
-
-    @staticmethod
-    def _get_templates_dir() -> Path:
-        plugin_dir = Path(__file__).parent.parent
-        return plugin_dir / "templates"
 
     async def _get_browser(self) -> Browser:
-        """获取共享的浏览器实例（延迟初始化）"""
         if self._browser is None or not self._browser.is_connected():
             self._playwright = await async_playwright().start()
             self._browser = await self._playwright.chromium.launch(
@@ -66,36 +82,28 @@ class LocalRenderer:
         return self._browser
 
     async def _get_context(self) -> BrowserContext:
-        """获取共享的浏览器上下文"""
         browser = await self._get_browser()
         if self._context is None or not self._context.browser:
             self._context = await browser.new_context(
-                viewport={
-                    "width": DEFAULT_VIEWPORT_WIDTH,
-                    "height": 600,
-                },
+                viewport={"width": DEFAULT_VIEWPORT_WIDTH, "height": 600},
                 device_scale_factor=2,
                 ignore_https_errors=True,
             )
         return self._context
 
     async def _get_page(self) -> Page:
-        """从页面池获取页面，如果池为空则创建新页面"""
         try:
             page = self._page_pool.get_nowait()
             if not page.is_closed():
                 return page
         except asyncio.QueueEmpty:
             pass
-
         context = await self._get_context()
         return await context.new_page()
 
     async def _return_page(self, page: Page) -> None:
-        """归还页面到池中，如果池满则关闭页面"""
         if page.is_closed():
             return
-
         try:
             self._page_pool.put_nowait(page)
         except asyncio.QueueFull:
@@ -141,22 +149,12 @@ class LocalRenderer:
         page = await self._get_page()
         try:
             return await self._screenshot(
-                page,
-                html_content,
-                viewport_width,
-                timeout_ms,
-                image_format,
-                jpeg_quality,
+                page, html_content, viewport_width, timeout_ms, image_format, jpeg_quality
             )
         except TargetClosedError:
             page = await self._get_page()
             return await self._screenshot(
-                page,
-                html_content,
-                viewport_width,
-                timeout_ms,
-                image_format,
-                jpeg_quality,
+                page, html_content, viewport_width, timeout_ms, image_format, jpeg_quality
             )
         except Exception as e:
             logger.error(f"渲染图片失败: {e}")
@@ -176,24 +174,20 @@ class LocalRenderer:
     ) -> bytes:
         await page.set_viewport_size({"width": viewport_width, "height": 600})
         await page.set_content(html_content, wait_until="domcontentloaded", timeout=timeout_ms)
-
         screenshot_kwargs = {
             "full_page": True,
             "timeout": timeout_ms,
             "animations": "disabled",
             "caret": "hide",
         }
-
         if image_format == "png":
             screenshot_kwargs["type"] = "png"
-        else:  # jpeg
+        else:
             screenshot_kwargs["type"] = "jpeg"
             screenshot_kwargs["quality"] = jpeg_quality
-
         return await page.screenshot(**screenshot_kwargs)
 
     async def close(self):
-        """关闭浏览器实例"""
         while not self._page_pool.empty():
             try:
                 page = self._page_pool.get_nowait()
@@ -201,26 +195,22 @@ class LocalRenderer:
                     await page.close()
             except asyncio.QueueEmpty:
                 break
-
         if self._context:
             try:
                 await self._context.close()
             except Exception:
                 pass
             self._context = None
-
         if self._browser:
             if self._browser.is_connected():
                 await self._browser.close()
             self._browser = None
             logger.info("Playwright 浏览器已关闭")
-
         if self._playwright:
             await self._playwright.stop()
             self._playwright = None
 
     async def prewarm(self):
-        """预热浏览器，创建页面池中的页面"""
         context = await self._get_context()
         for _ in range(self._page_pool_size):
             page = await context.new_page()
@@ -248,11 +238,14 @@ async def get_renderer() -> LocalRenderer:
 
 
 async def close_renderer():
-    """关闭渲染器（插件卸载时调用）"""
     global _renderer
     if _renderer:
         await _renderer.close()
         _renderer = None
+
+
+def get_template_content(relative_path: str) -> str:
+    return TemplateCache.get_content(relative_path)
 
 
 async def render_html_to_bytes(
@@ -265,14 +258,7 @@ async def render_html_to_bytes(
     jpeg_quality: int = 85,
 ) -> bytes:
     renderer = await get_renderer()
-    template = renderer._string_template_cache.get(template_string)
-    if template is not None:
-        renderer._string_template_cache.move_to_end(template_string)
-    else:
-        template = renderer._env.from_string(template_string)
-        renderer._string_template_cache[template_string] = template
-        if len(renderer._string_template_cache) > renderer._MAX_TEMPLATE_CACHE:
-            renderer._string_template_cache.popitem(last=False)
+    template = TemplateCache.compile_string(renderer._env, template_string)
     html_content = template.render(**data)
     return await renderer.render_string(
         html_content,
@@ -311,10 +297,6 @@ async def render_to_image(
     image_format: str = "jpeg",
     jpeg_quality: int = 85,
 ) -> str:
-    """统一渲染入口。html_render 为 None 时使用本地渲染，否则使用远程渲染。
-
-    返回图片文件路径。
-    """
     if html_render is not None:
         return await html_render(
             template_string,
@@ -328,13 +310,3 @@ async def render_to_image(
         jpeg_quality=jpeg_quality,
     )
     return save_bytes_to_temp_file(image_bytes)
-
-
-__all__ = [
-    "LocalRenderer",
-    "get_renderer",
-    "close_renderer",
-    "render_html_to_bytes",
-    "render_template_to_bytes",
-    "render_to_image",
-]

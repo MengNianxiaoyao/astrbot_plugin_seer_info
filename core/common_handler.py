@@ -15,7 +15,7 @@ async def multi_select_query(
     result_type: str = "chain",
     error_log_name: str = "",
 ):
-    from ..data.db import db_manager
+    from ..data import db_manager
 
     if not arg.strip():
         yield event.plain_result(f"❌请提供要查询的{label}名称。\n用法：/{label} <名称>")

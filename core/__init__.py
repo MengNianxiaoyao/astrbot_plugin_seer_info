@@ -6,10 +6,13 @@ from .equip_handler import EquipHandler
 from .mintmark_handler import MintmarkHandler
 from .misc_handler import MiscHandler
 from .pet_handler import PetHandler
+from .pet_renderer import PET_TEMPLATE, render_pet_info_data
 from .renderer import (
     LocalRenderer,
+    TemplateCache,
     close_renderer,
     get_renderer,
+    get_template_content,
     render_html_to_bytes,
     render_template_to_bytes,
     render_to_image,
@@ -20,10 +23,13 @@ from .type_calc import (
     calc_defense_table,
     invalidate_relation_cache,
 )
+from .type_matchup_renderer import TYPE_MATCHUP_TEMPLATE, render_type_matchup
 
 __all__ = [
     "LocalRenderer",
+    "TemplateCache",
     "get_renderer",
+    "get_template_content",
     "close_renderer",
     "render_html_to_bytes",
     "render_template_to_bytes",
@@ -41,4 +47,8 @@ __all__ = [
     "TitleHandler",
     "MiscHandler",
     "multi_select_query",
+    "PET_TEMPLATE",
+    "render_pet_info_data",
+    "TYPE_MATCHUP_TEMPLATE",
+    "render_type_matchup",
 ]
