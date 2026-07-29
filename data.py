@@ -190,7 +190,7 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
                 try:
                     remote_fingerprint = await get_fingerprint(session)
                 except Exception as e:
-                    logger.warning(f"数据库 '{name}' 指纹检查失败: {e}，尝试使用本地数据")
+                    logger.warning(f"数据库 '{name}' 指纹检查失败，尝试使用本地数据")
                     if not db_manager.is_database_loaded(name):
                         db_manager.load_from_file(name, plugin_db_path)
                     return
@@ -223,7 +223,7 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
                     await asyncio.to_thread(Path(sha256_path).write_text, remote_fp.strip())
                     logger.info(f"已保存指纹: {remote_fp.strip()}")
                 except Exception as e:
-                    logger.warning(f"保存指纹失败: {e}")
+                    logger.warning(f"保存 {name} 指纹失败: {e}")
 
             logger.info(f"数据库 '{name}' 已下载，大小: {len(data) / (1024 * 1024):.2f} MB")
             db_manager.load_from_file(name, plugin_db_path)
