@@ -189,7 +189,7 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
             if db_exists and get_fingerprint:
                 try:
                     remote_fingerprint = await get_fingerprint(session)
-                except Exception as e:
+                except Exception:
                     logger.warning(f"数据库 '{name}' 指纹检查失败，尝试使用本地数据")
                     if not db_manager.is_database_loaded(name):
                         db_manager.load_from_file(name, plugin_db_path)
