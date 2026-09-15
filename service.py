@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import io
 import zlib
 from collections import OrderedDict
 from collections.abc import Callable
@@ -60,6 +61,15 @@ def to_data_uri(data: bytes, mime_type: str | None = None) -> str:
         mime_type, _ = _detect_image_format(data)
     b64 = base64.b64encode(data)
     return f"data:{mime_type};base64,{b64.decode()}"
+
+
+def flip_image_horizontal(data: bytes) -> bytes:
+    """Flip a downloaded image while preserving its source format."""
+    with Image.open(io.BytesIO(data)) as image:
+        flipped = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+        output = io.BytesIO()
+        flipped.save(output, format=image.format or "PNG")
+        return output.getvalue()
 
 
 def save_bytes_to_temp_file(image_bytes: bytes, suffix: str | None = None) -> str:

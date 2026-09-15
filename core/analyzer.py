@@ -139,6 +139,10 @@ class AnalyzeDescParser:
         """描述中出现的所有文本片段"""
         return [seg for line in self.lines for seg in line.segments]
 
+    def segments_by_color(self, color: str) -> list[TextSegment]:
+        """Return text segments carrying the specified source color."""
+        return [segment for segment in self.segments if color in segment.colors]
+
     @property
     def segments_with_id(self) -> set[int]:
         """描述中出现的所有词条 ID"""

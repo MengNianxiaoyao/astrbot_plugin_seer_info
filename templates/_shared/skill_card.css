@@ -91,6 +91,29 @@
     margin-top: 8px;
 }
 
+.sk-glossaries {
+    margin-top: 12px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sk-glossary {
+    font-size: 17px;
+    line-height: 1.6;
+    padding: 4px 0;
+}
+
+.sk-glossary-name {
+    font-weight: bold;
+    margin-right: 4px;
+}
+
+.sk-glossary-desc {
+    color: #e0f0ff;
+}
+
 .sk-efx {
     margin-top: 10px;
     padding-left: 12px;

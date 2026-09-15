@@ -210,6 +210,32 @@
             color: #e0f0ff;
         }
 
+        /* ========== 介绍卡片 ========== */
+        .intro-item {
+            background-color: #2a5a9a;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-left: 4px solid #ffffff;
+            border-radius: 0 4px 4px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .intro-meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            font-size: 15px;
+            color: #e0f0ff;
+        }
+
+        .intro-meta-sep {
+            color: #4a8ada;
+            padding: 0 8px;
+        }
+
         /* ========== 刻印卡片 ========== */
         .mm-item {
             background-color: #2a5a9a;
@@ -358,6 +384,24 @@
                         <img class="pet-img" src="{{ pet_body_img }}" />
                     </div>
 
+                    {% if pet_introduction %}
+                    <div class="section">
+                        <div class="sec-title">介绍</div>
+                        <div class="intro-item">
+                            <div class="sm-desc">{{ pet_introduction }}</div>
+                            <div class="intro-meta">
+                                <span>身高：{{ pet_height }}</span>
+                                <span class="intro-meta-sep">|</span>
+                                <span>体重：{{ pet_weight }}</span>
+                                {% if pet_food %}
+                                <span class="intro-meta-sep">|</span>
+                                <span>喜爱食物：{{ pet_food }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <div class="section">
                         <div class="sec-title">种族值{% if advance_stats %}<span class="s-adv">/觉醒后</span>{% endif %}</div>
                         <div class="stats-container">
@@ -436,7 +480,7 @@
                             <div class="sm-glossaries">
                                 {% for g in sm.glossaries %}
                                 <div class="sm-glossary">
-                                    <span class="sm-glossary-name">{{ g.name }}:</span>
+                                    <span class="sm-glossary-name" style="color: {{ g.color }}">{{ g.name }}:</span>
                                     <span class="sm-glossary-desc">{{ g.desc|safe }}</span>
                                 </div>
                                 {% endfor %}

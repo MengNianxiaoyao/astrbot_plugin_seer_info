@@ -1,4 +1,5 @@
 import asyncio
+import html
 from pathlib import Path
 from typing import Any
 
@@ -13,12 +14,24 @@ from ..service import (
     MintmarkBodyImageGetter,
     PetBodyImageGetter,
     PetHeadImageGetter,
+    flip_image_horizontal,
     to_data_uri,
 )
-from .analyzer import parse_analyze_desc
+from .analyzer import AnalyzeDescParser, parse_analyze_desc
 from .renderer import get_template_content
 
 PET_TEMPLATE = get_template_content("pet_info/template.html.j2")
+_TERM_COLOR = "#f35555"
+_TERM_COLORS = (
+    "#ff9e6e",
+    "#f5d84a",
+    "#8ae878",
+    "#6eebc0",
+    "#ff8ab8",
+    "#e8a0ff",
+    "#ff7b7b",
+    "#ffd4a0",
+)
 
 
 def _extract_skill(skill_in_pet) -> list[dict[str, Any]]:
@@ -31,13 +44,16 @@ def _extract_skill(skill_in_pet) -> list[dict[str, Any]]:
     skill_hide_effect = getattr(skill, "hide_effect", None)
     skill_activation_item = getattr(skill_in_pet, "skill_activation_item", None)
 
-    effects = [
-        {
-            "id": getattr(e, "effect_id", 0),
-            "info": parse_analyze_desc(getattr(e, "analyze_info", "") or ""),
-        }
-        for e in getattr(skill, "skill_effect", [])
-    ]
+    effects = []
+    for effect in getattr(skill, "skill_effect", []):
+        parser = AnalyzeDescParser.from_cache(getattr(effect, "analyze_info", "") or "")
+        effects.append(
+            {
+                "id": getattr(effect, "effect_id", 0),
+                "info": parser.to_html(),
+                "_parser": parser,
+            }
+        )
 
     hide_effect_desc = (
         getattr(skill_hide_effect, "description", None) if skill_hide_effect else None
@@ -65,6 +81,7 @@ def _extract_skill(skill_in_pet) -> list[dict[str, Any]]:
         "is_advanced": skill_in_pet.is_advanced,
         "is_fifth": skill_in_pet.is_fifth,
         "effects": effects,
+        "glossaries": [],
         "activation_item": activation_item,
         "friend_bonus": False,
         "hide_effect_desc": hide_effect_desc,
@@ -97,18 +114,86 @@ def _extract_soulmark(soulmarks: list, pet: PetORM) -> list[dict[str, Any]]:
                 "pve_effective": getattr(sm, "pve_effective", None),
                 "tags": [t.name for t in getattr(sm, "tag", []) or []],
                 "glossaries": [],
+                "_parser": AnalyzeDescParser.from_cache(sm_desc or ""),
             }
         )
 
-    pet_glossary_entries = list(getattr(pet, "glossary_entry", []) or [])
-    for i, sm_data in enumerate(reversed(results)):
-        for glossary in pet_glossary_entries:
-            g_name = getattr(glossary, "name", "")
-            g_desc = getattr(glossary, "desc", "")
-            if g_name and (i == 0 or g_name in sm_data["desc"]):
-                sm_data["glossaries"].append({"name": g_name, "desc": g_desc})
-
     return results
+
+
+def _apply_glossaries(
+    pet: PetORM,
+    soulmarks: list[dict[str, Any]],
+    skills: list[dict[str, Any]],
+) -> None:
+    entries = {
+        entry.name: entry
+        for entry in getattr(pet, "glossary_entry", []) or []
+        if getattr(entry, "name", None)
+    }
+    colors: dict[str, str] = {}
+    seen: set[str] = set()
+
+    def color_for(name: str) -> str:
+        if name not in colors:
+            colors[name] = _TERM_COLORS[len(colors) % len(_TERM_COLORS)]
+        return colors[name]
+
+    def terms_for(parser: AnalyzeDescParser) -> list[str]:
+        return list(
+            dict.fromkeys(
+                segment.text
+                for segment in parser.segments_by_color(_TERM_COLOR)
+                if segment.text in entries
+            )
+        )
+
+    def styles(text: str) -> str:
+        name = html.unescape(text)
+        return f'<b style="color:{color_for(name)}">{text}</b>'
+
+    def process(item: dict[str, Any]) -> None:
+        parser = item.pop("_parser", None)
+        if parser is None:
+            return
+        names = terms_for(parser)
+        item["desc"] = parser.to_html({"#f35555": styles})
+        item["glossaries"] = []
+        for name in names:
+            if name in seen:
+                continue
+            seen.add(name)
+            entry = entries[name]
+            item["glossaries"].append(
+                {
+                    "name": name,
+                    "desc": getattr(entry, "desc", ""),
+                    "color": color_for(name),
+                }
+            )
+
+    for soulmark in soulmarks:
+        process(soulmark)
+    for skill in skills:
+        for effect in skill.get("effects", []):
+            parser = effect.pop("_parser", None)
+            if parser is None:
+                continue
+            names = terms_for(parser)
+            effect["info"] = parser.to_html({"#f35555": styles})
+            skill.setdefault("glossaries", [])
+            for name in names:
+                if name in seen:
+                    continue
+                seen.add(name)
+                entry = entries[name]
+                skill["glossaries"].append(
+                    {
+                        "name": name,
+                        "desc": getattr(entry, "desc", ""),
+                        "color": color_for(name),
+                    }
+                )
 
 
 async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
@@ -158,6 +243,8 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
                 "glossaries": [],
             }
         )
+
+    _apply_glossaries(pet, soulmarks, all_skills)
 
     fifth_skills = [s for s in all_skills if s.get("is_fifth")][::-1]
     advanced_skills = [s for s in all_skills if s.get("is_advanced")][::-1]
@@ -231,7 +318,14 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
         mm_icon_results = gather_results[2 + type_icon_count :]
 
         pet_head_img = "" if isinstance(pet_head_bytes, Exception) else to_data_uri(pet_head_bytes)
-        pet_body_img = "" if isinstance(pet_body_bytes, Exception) else to_data_uri(pet_body_bytes)
+        if isinstance(pet_body_bytes, Exception):
+            pet_body_img = ""
+        else:
+            try:
+                pet_body_img = to_data_uri(flip_image_horizontal(pet_body_bytes))
+            except Exception as e:
+                logger.warning(f"水平翻转精灵立绘失败，使用原图: {e}")
+                pet_body_img = to_data_uri(pet_body_bytes)
 
         type_icons = {}
         for i, tid in enumerate(type_ids):
@@ -277,6 +371,23 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
                 adv_model = adv_model.round()
             advance_stats = adv_model.model_dump()
 
+    encyclopedia = getattr(pet, "encyclopedia", None)
+    pet_introduction = getattr(encyclopedia, "introduction", None)
+    pet_height = (
+        f"{encyclopedia.height:g}cm"
+        if encyclopedia is not None and getattr(encyclopedia, "height", None) is not None
+        else "未知"
+        if encyclopedia is not None
+        else None
+    )
+    pet_weight = (
+        f"{encyclopedia.weight:g}kg"
+        if encyclopedia is not None and getattr(encyclopedia, "weight", None) is not None
+        else "未知"
+        if encyclopedia is not None
+        else None
+    )
+
     render_data = {
         "pet_name": pet_name,
         "pet_id": pet_id,
@@ -284,6 +395,10 @@ async def _build_pet_render_data(pet: PetORM) -> dict[str, Any]:
         "pet_gender_icon": pet_gender_icon,
         "pet_type_id": str(pet_type_id) if pet_type_id else "0",
         "pet_type_name": pet_type_name,
+        "pet_introduction": pet_introduction,
+        "pet_height": pet_height,
+        "pet_weight": pet_weight,
+        "pet_food": getattr(encyclopedia, "food", None),
         "pet_head_img": pet_head_img,
         "pet_body_img": pet_body_img,
         "type_icons": type_icons,

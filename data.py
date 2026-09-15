@@ -4,7 +4,7 @@ import sqlite3
 import time
 from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Any, Final, Generic, Protocol, TypeVar
+from typing import Any, Final, Generic, Literal, Protocol, TypeVar
 
 import aiohttp
 from astrbot.api import logger
@@ -89,6 +89,9 @@ class DatabaseManager:
             except Exception:
                 logger.warning(f"数据库 '{name}' 的 post-load 钩子执行失败")
 
+        old_session = self._sessions.pop(name, None)
+        if old_session is not None:
+            old_session.close()
         old_engine = self._engines.get(name)
         self._engines[name] = new_engine
         if old_engine is not None:
@@ -131,6 +134,9 @@ class DatabaseManager:
 
 db_manager: Final[DatabaseManager] = DatabaseManager()
 _sync_tasks: dict[str, asyncio.Task] = {}
+_sync_specs: dict[str, tuple[str, Callable | None]] = {}
+_sync_locks: dict[str, asyncio.Lock] = {}
+SyncResult = Literal["updated", "skipped", "failed"]
 
 
 def register_database(
@@ -140,11 +146,13 @@ def register_database(
     sync_interval_minutes: int = 60,
     get_fingerprint: Callable[[aiohttp.ClientSession], Any] | None = None,
 ):
+    _sync_specs[name] = (sync_url, get_fingerprint)
+
     async def sync_task():
         try:
             while True:
                 t0 = time.monotonic()
-                await sync_database(name, sync_url, get_fingerprint)
+                await sync_database(name)
                 elapsed = time.monotonic() - t0
                 sleep_sec = max(sync_interval_minutes * 60 - elapsed, 0)
                 logger.info(f"数据库 '{name}' 将在 {sleep_sec / 60:.1f} 分钟后再次检查")
@@ -168,6 +176,7 @@ async def cancel_sync_tasks() -> None:
 
 
 def register_local_database(name: str):
+    _sync_specs.pop(name, None)
     file_path = get_plugin_db_path(name)
     if not Path(file_path).exists():
         logger.warning(f"本地文件 '{file_path}' 不存在，跳过注册 {name}")
@@ -175,9 +184,29 @@ def register_local_database(name: str):
     db_manager.load_from_file(name, file_path)
 
 
-async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | None = None):
+async def sync_database(
+    name: str,
+    sync_url: str | None = None,
+    get_fingerprint: Callable | None = None,
+) -> SyncResult | None:
+    if sync_url is None:
+        spec = _sync_specs.get(name)
+        if spec is None:
+            return None
+        sync_url, get_fingerprint = spec
     if not sync_url:
-        return
+        return "failed"
+
+    lock = _sync_locks.setdefault(name, asyncio.Lock())
+    async with lock:
+        return await _sync_database_locked(name, sync_url, get_fingerprint)
+
+
+async def _sync_database_locked(
+    name: str,
+    sync_url: str,
+    get_fingerprint: Callable | None,
+) -> SyncResult:
 
     plugin_db_path = get_plugin_db_path(name)
     plugin_db_file = Path(plugin_db_path)
@@ -193,7 +222,7 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
                     logger.warning(f"数据库 '{name}' 指纹检查失败，尝试使用本地数据")
                     if not db_manager.is_database_loaded(name):
                         db_manager.load_from_file(name, plugin_db_path)
-                    return
+                    return "failed"
 
                 local_fingerprint = None
                 sha256_exists = await asyncio.to_thread(Path(sha256_path).exists)
@@ -207,7 +236,7 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
                     else:
                         logger.info(f"数据库 '{name}' 指纹未变化，使用本地数据")
                         db_manager.load_from_file(name, plugin_db_path)
-                    return
+                    return "skipped"
 
             logger.info(f"开始下载数据库 '{name}'...")
             async with session.get(sync_url, allow_redirects=True) as resp:
@@ -227,11 +256,13 @@ async def sync_database(name: str, sync_url: str, get_fingerprint: Callable | No
 
             logger.info(f"数据库 '{name}' 已下载，大小: {len(data) / (1024 * 1024):.2f} MB")
             db_manager.load_from_file(name, plugin_db_path)
+            return "updated"
 
     except asyncio.CancelledError:
         raise
     except Exception as e:
         logger.error(f"数据库 '{name}' 同步失败: {e}")
+        return "failed"
 
 
 _IGNORED_CHARS = ".·・•‧∙⋅。—–-_/ "

@@ -8,6 +8,16 @@ _IMMUNE = 0
 
 RelationMap = dict[tuple[int, int], float]
 
+__all__ = [
+    "RelationMap",
+    "calc_attack_table",
+    "calc_defense_table",
+    "calc_multiplier",
+    "calc_type_multiplier",
+    "invalidate_relation_cache",
+    "load_relation_map",
+]
+
 _relation_cache: RelationMap | None = None
 _all_combos_cache: list[TypeCombinationORM] | None = None
 
@@ -25,6 +35,11 @@ def _load_relations(session: Session) -> RelationMap:
     ).all()
     _relation_cache = {(src, tgt): mul for src, tgt, mul in rows}
     return _relation_cache
+
+
+def load_relation_map(session: Session) -> RelationMap:
+    """Load the single-type relation table for reusable calculations."""
+    return _load_relations(session)
 
 
 def invalidate_relation_cache():
@@ -79,6 +94,24 @@ def _calc_multiplier(
     c1 = _double_attacks_single(table, attacker.primary_id, atk_sec, defender.primary_id)
     c2 = _double_attacks_single(table, attacker.primary_id, atk_sec, def_sec)
     return (c1 + c2) / 2
+
+
+def calc_multiplier(
+    table: RelationMap,
+    attacker: TypeCombinationORM,
+    defender: TypeCombinationORM,
+) -> float:
+    """Calculate a multiplier from a preloaded relation table."""
+    return _calc_multiplier(table, attacker, defender)
+
+
+def calc_type_multiplier(
+    session: Session,
+    attacker: TypeCombinationORM,
+    defender: TypeCombinationORM,
+) -> float:
+    """Calculate one attack/defense type-combination multiplier."""
+    return calc_multiplier(load_relation_map(session), attacker, defender)
 
 
 def calc_attack_table(

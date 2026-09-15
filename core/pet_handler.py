@@ -108,7 +108,25 @@ class PetHandler:
     async def _prepare_skin_result(self, skin):
         image_bytes = await PetBodyImageGetter.get_bytes(str(skin.resource_id))
         temp_path = save_bytes_to_temp_file(image_bytes)
-        return [
-            Comp.Image.fromFileSystem(temp_path),
-            Comp.Plain(f"💎【{skin.name}】"),
-        ]
+        lines = [f"💎【{skin.name}】"]
+        pet = getattr(skin, "pet", None)
+        if pet is not None and getattr(pet, "name", None):
+            lines.append(f"所属精灵：{pet.name}")
+        series = getattr(skin, "series", None)
+        if series:
+            series_name = getattr(series, "name", series)
+            sub_type = getattr(skin, "sub_type", None)
+            if sub_type is not None and getattr(sub_type, "name", None):
+                series_name = f"{series_name} - {sub_type.name}"
+            lines.append(f"所属系列：{series_name}")
+        for field, label in (
+            ("card_price", "礼卡价格"),
+            ("diamond_price", "钻石价格"),
+            ("skinhouse_price", "神秘屋价格"),
+            ("discounted_skinhouse_price", "神秘屋折扣价格"),
+            ("ticket_num", "可使用风尚券数量"),
+        ):
+            value = getattr(skin, field, None)
+            if value:
+                lines.append(f"{label}：{value}")
+        return [Comp.Image.fromFileSystem(temp_path), Comp.Plain("\n".join(lines))]
